@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camp d'été Semaine 1 - Borne d'Arcade</title>
+    <!-- Polices Rétro & Modernes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="portal_style.css">
+</head>
+<body>
+    <div id="stars-background"></div>
+    <div id="grid-background"></div>
+
+    <div class="container">
+        <!-- En-tête du Portail -->
+        <header class="portal-header">
+            <div class="sub-badge">DÉVELOPPEMENT JEUX VIDÉO</div>
+            <h1 class="portal-title">CAMP D'ÉTÉ <span class="neon-text">SEMAINE 1</span></h1>
+            <p class="portal-tagline">Découvrez les projets de jeux créés par nos makers en Scratch et JavaScript !</p>
+        </header>
+
+        <!-- Catalogue des Jeux -->
+        <main class="games-catalog">
+            <h2 class="section-title"><span class="icon">🕹️</span> CATALOGUE DES JEUX</h2>
+            
+            <div id="games-grid" class="games-grid">
+                <!-- Jeu JS : Zombie Stadium (Default 1) -->
+                <div class="game-card js-card" data-game-type="js" data-src="./zombie_stadium.html">
+                    <div class="card-badge tag-js">JAVASCRIPT</div>
+                    <div class="card-preview">
+                        <div class="preview-overlay">⚽ ZOMBIE STADIUM</div>
+                    </div>
+                    <div class="card-content">
+                        <h3>Zombie Stadium</h3>
+                        <p class="card-desc">FPS 2D rétro-arcade. Shootez des ballons de foot sur les zombies pour survivre et trouvez le téléphone pour appeler les secours !</p>
+                        <div class="card-controls">
+                            <span class="difficulty easy">★★☆ Difficile</span>
+                            <button class="play-btn">JOUER</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Jeu Scratch : Paper Minecraft (Default 2) -->
+                <div class="game-card scratch-card" data-game-type="scratch" data-src="10128407">
+                    <div class="card-badge tag-scratch">SCRATCH</div>
+                    <div class="card-preview scratch-bg-1">
+                        <div class="preview-overlay">📦 PAPER MINECRAFT</div>
+                    </div>
+                    <div class="card-content">
+                        <h3>Paper Minecraft</h3>
+                        <p class="card-desc">L'adaptation légendaire de Minecraft en 2D sur Scratch par Griffpatch. Construisez, minez et survivez !</p>
+                        <div class="card-controls">
+                            <span class="difficulty hard">★★★ Expert</span>
+                            <button class="play-btn">JOUER</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Jeu Scratch : Scratcharia (Default 3) -->
+                <div class="game-card scratch-card" data-game-type="scratch" data-src="12513470">
+                    <div class="card-badge tag-scratch">SCRATCH</div>
+                    <div class="card-preview scratch-bg-2">
+                        <div class="preview-overlay">🌳 SCRATCHARIA</div>
+                    </div>
+                    <div class="card-content">
+                        <h3>Scratcharia</h3>
+                        <p class="card-desc">Le célèbre Terraria en 2D entièrement recréé sur Scratch. Explorez des grottes et combattez des boss !</p>
+                        <div class="card-controls">
+                            <span class="difficulty normal">★★☆ Moyen</span>
+                            <button class="play-btn">JOUER</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Formulaire d'Ajout de Jeux Scratch -->
+        <section class="add-game-section">
+            <div class="form-header">
+                <h2><span class="icon">➕</span> AJOUTER UN PROJET SCRATCH</h2>
+                <p>Intégrez votre propre projet Scratch créé durant le camp d'été !</p>
+            </div>
+            
+            <form id="add-game-form" class="add-game-form">
+                <div class="form-group">
+                    <label for="game-title">Titre du Jeu</label>
+                    <input type="text" id="game-title" placeholder="Ex: Mon Super Platformer" required>
+                </div>
+                <div class="form-group">
+                    <label for="game-desc">Description</label>
+                    <input type="text" id="game-desc" placeholder="Ex: Évitez les obstacles et récoltez des pièces..." required>
+                </div>
+                <div class="form-group">
+                    <label for="scratch-id">ID de Projet Scratch ou URL</label>
+                    <input type="text" id="scratch-id" placeholder="Ex: 105500895 ou l'adresse complète du projet" required>
+                </div>
+                <button type="submit" class="submit-btn">AJOUTER À LA BORNE</button>
+            </form>
+        </section>
+
+        <!-- Footer -->
+        <footer class="portal-footer">
+            <p>Camp d'été - Semaine 1 | Réalisé avec Passion par la Code Academy</p>
+        </footer>
+    </div>
+
+    <!-- MODAL DE LA BORNE D'ARCADE (Interactive Cabinet) -->
+    <div id="arcade-modal" class="arcade-modal">
+        <div class="cabinet-overlay-close" id="btn-close-overlay"></div>
+        <div class="arcade-cabinet-structure">
+            <!-- Haut de la borne d'arcade (Marquee lumineuse) -->
+            <div class="cabinet-marquee">
+                <div class="marquee-text neon-magenta-glow">ARCADE WEEK 1</div>
+            </div>
+
+            <!-- Partie écran de la borne -->
+            <div class="cabinet-body">
+                <div class="cabinet-screen-bezel">
+                    <!-- Filtres CRT rétro -->
+                    <div id="modal-crt-overlay" class="crt-on"></div>
+                    <div id="modal-scanline-overlay"></div>
+                    
+                    <!-- L'Écran du Jeu (Iframe) -->
+                    <div class="screen-glass">
+                        <iframe id="arcade-iframe" src="" allowtransparency="true" frameborder="0" scrolling="no" allowfullscreen="true" allow="autoplay; gamepad"></iframe>
+                    </div>
+                </div>
+
+                <!-- Panneau de contrôle physique de la borne (Boutons / Joystick stylisés) -->
+                <div class="cabinet-controls-panel">
+                    <div class="joystick-group">
+                        <div class="joystick-base">
+                            <div class="joystick-shaft">
+                                <div class="joystick-ball"></div>
+                            </div>
+                        </div>
+                        <span class="control-label">DIRECTION</span>
+                    </div>
+
+                    <div class="cabinet-status-screen">
+                        <div class="status-title" id="active-game-title">CHARGEMENT...</div>
+                        <div class="status-action">COIN : 1 / PLAYER 1</div>
+                    </div>
+
+                    <div class="action-buttons-group">
+                        <div class="btn-item">
+                            <button class="arcade-phy-btn btn-red" id="btn-modal-crt" title="Filtre CRT"></button>
+                            <span class="control-label">CRT ON/OFF</span>
+                        </div>
+                        <div class="btn-item">
+                            <button class="arcade-phy-btn btn-blue" id="btn-modal-fullscreen" title="Plein Écran"></button>
+                            <span class="control-label">P. ÉCRAN</span>
+                        </div>
+                        <div class="btn-item">
+                            <button class="arcade-phy-btn btn-yellow" id="btn-modal-close" title="Quitter"></button>
+                            <span class="control-label">QUITTER</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bas de la borne d'arcade (Monnayeur stylisé) -->
+            <div class="cabinet-coin-door">
+                <div class="coin-insert">
+                    <div class="coin-slot"></div>
+                    <div class="coin-button">25¢ INSERT COIN TO PLAY</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="portal.js"></script>
+</body>
+</html>

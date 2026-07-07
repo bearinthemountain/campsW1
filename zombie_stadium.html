@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Stadium: Le Shoot de la Survie</title>
+    <!-- Police rétro Arcade -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="arcade-cabinet">
+        <div id="arcade-bezel">
+            <!-- Overlay CRT pour l'effet rétro -->
+            <div id="crt-overlay" class="crt-on"></div>
+            <div id="scanline-overlay"></div>
+            
+            <!-- Écran de démarrage -->
+            <div id="start-screen" class="screen active">
+                <div class="arcade-title">
+                    <span class="neon-magenta">ZOMBIE</span>
+                    <span class="neon-cyan">STADIUM</span>
+                </div>
+                <div class="arcade-subtitle">LE SHOOT DE LA SURVIE</div>
+                
+                <div class="game-intro">
+                    <p>Un match de foot amical a mal tourné... Les tribunes sont envahies de supporters zombies !</p>
+                    <p>Enfilez vos crampons, shootez des ballons pour repousser les morts-vivants et trouvez la <span class="highlight-yellow">cabine téléphonique dorée</span> pour appeler les secours !</p>
+                </div>
+
+                <div class="instructions">
+                    <div class="instruction-group">
+                        <span class="key">Z Q S D</span> ou <span class="key">▲ ▼ ◀ ▶</span> : Se déplacer
+                        <span class="key">A / E</span> : Pivoter la caméra
+                    </div>
+                    <div class="instruction-group">
+                        <span class="key">ESPACE</span> ou <span class="key">CLIC</span> : Shooter le ballon
+                    </div>
+                </div>
+
+                <div class="player-select">
+                    <h3>CHOISISSEZ VOTRE JOUEUR</h3>
+                    <div class="player-cards">
+                        <div class="player-card selected" data-player="striker">
+                            <div class="player-avatar">⚽🏃</div>
+                            <div class="player-name">L'ATTAQUANT</div>
+                            <div class="player-desc">Tir super rapide<br>Vitesse ++ | Vie normale</div>
+                        </div>
+                        <div class="player-card" data-player="defender">
+                            <div class="player-avatar">🛡️🦾</div>
+                            <div class="player-name">LE DÉFENSEUR</div>
+                            <div class="player-desc">Encaisse les chocs<br>Vitesse normale | Vie ++</div>
+                        </div>
+                        <div class="player-card" data-player="midfielder">
+                            <div class="player-avatar">⚡👟</div>
+                            <div class="player-name">LE MILIEU</div>
+                            <div class="player-desc">Super endurance<br>Vitesse max | Vie normale</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="btn-play" class="arcade-btn pulse">COMMENCER LE MATCH</button>
+            </div>
+
+            <!-- Écran de jeu -->
+            <div id="game-screen" class="screen">
+                <!-- HUD en haut -->
+                <div id="hud-top">
+                    <div class="hud-item">
+                        <span class="hud-label">SCORE</span>
+                        <span id="hud-score" class="hud-val">000000</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">SANTÉ</span>
+                        <div id="hud-health-bar">
+                            <div id="hud-health-fill"></div>
+                        </div>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">TIR COOLDOWN</span>
+                        <div id="hud-stamina-bar">
+                            <div id="hud-stamina-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Canvas pour le Raycaster -->
+                <div id="canvas-container">
+                    <canvas id="game-canvas" width="640" height="400"></canvas>
+                    
+                    <!-- Viseur -->
+                    <div id="crosshair"></div>
+                    
+                    <!-- Flash de dégâts -->
+                    <div id="damage-flash"></div>
+                </div>
+
+                <!-- HUD en bas -->
+                <div id="hud-bottom">
+                    <div class="hud-item map-container">
+                        <span class="hud-label">RADAR (MINICARTE)</span>
+                        <canvas id="minimap-canvas" width="100" height="100"></canvas>
+                    </div>
+                    <div class="hud-item status-box">
+                        <span class="hud-label">OBJECTIF</span>
+                        <div id="objective-text">TROUVER LE TÉLÉPHONE</div>
+                        <div id="distance-indicator">Distance: <span id="dist-val">--</span>m</div>
+                    </div>
+                    <div class="hud-item controls-bar">
+                        <button id="btn-mute" class="hud-btn" title="Activer/Couper le son">🔊</button>
+                        <button id="btn-crt" class="hud-btn" title="Effet CRT">📺</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Écran Game Over -->
+            <div id="gameover-screen" class="screen">
+                <div class="arcade-title neon-red text-shake">GAME OVER</div>
+                <div class="arcade-subtitle">VOUS AVEZ ÉTÉ TACLE PAR LES ZOMBIES</div>
+                
+                <div class="stats-summary">
+                    <p>Score final: <span id="go-score" class="neon-yellow">0</span></p>
+                    <p>Zombies éliminés: <span id="go-kills" class="neon-cyan">0</span></p>
+                </div>
+
+                <button id="btn-retry" class="arcade-btn pulse">REJOUER LE MATCH</button>
+            </div>
+
+            <!-- Écran Victoire -->
+            <div id="victory-screen" class="screen">
+                <div class="arcade-title neon-green text-bounce">VICTOIRE !</div>
+                <div class="arcade-subtitle">APPEL AUX SECOURS EFFECTUÉ !</div>
+                
+                <div class="stats-summary">
+                    <p>Temps final: <span id="vic-time" class="neon-yellow">0</span>s</p>
+                    <p>Score final: <span id="vic-score" class="neon-cyan">0</span></p>
+                    <p>Zombies éliminés: <span id="vic-kills" class="neon-magenta">0</span></p>
+                </div>
+
+                <div class="high-scores">
+                    <h3>TABLEAU DES SCORES</h3>
+                    <ol id="high-scores-list">
+                        <li>AAA - 5000</li>
+                        <li>BBB - 3000</li>
+                        <li>CCC - 1000</li>
+                    </ol>
+                </div>
+
+                <button id="btn-restart" class="arcade-btn pulse">RETOURNER AU STADE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script principal du jeu -->
+    <script src="game.js"></script>
+</body>
+</html>
