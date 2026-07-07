@@ -26,6 +26,15 @@ const DEFAULT_GAMES = [
         src: "12513470",
         difficulty: "★★☆ Moyen",
         diffClass: "normal" // yellow
+    },
+    {
+        id: "scratch_geometry_dash_1",
+        title: "Geometry Dash 1",
+        desc: "Le jeu de rythme et de réflexes légendaire recréé sur Scratch par splatast0. Évitez les obstacles et terminez le niveau !",
+        type: "scratch",
+        src: "1351612590",
+        difficulty: "★★☆ Moyen",
+        diffClass: "normal" // yellow
     }
 ];
 
@@ -107,6 +116,12 @@ function renderGamesCatalog() {
             previewHtml = `
                 <div class="card-preview scratch-bg-2" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/12513470.png')">
                     <div class="preview-overlay">🌳 SCRATCHARIA</div>
+                </div>
+            `;
+        } else if (game.id === 'scratch_geometry_dash_1') {
+            previewHtml = `
+                <div class="card-preview scratch-bg-3" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351612590.png')">
+                    <div class="preview-overlay">🔺 GEOMETRY DASH 1</div>
                 </div>
             `;
         } else {
