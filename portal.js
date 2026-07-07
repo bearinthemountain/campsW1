@@ -35,6 +35,15 @@ const DEFAULT_GAMES = [
         src: "1351612590",
         difficulty: "★★☆ Moyen",
         diffClass: "normal" // yellow
+    },
+    {
+        id: "scratch_esquive_crane_oeuf",
+        title: "Esquive of Crane d'Oeuf",
+        desc: "Un jeu d'esquive palpitant créé sur Scratch par AntoCampsEte. Évitez les obstacles et survivez le plus longtemps possible !",
+        type: "scratch",
+        src: "1351870577",
+        difficulty: "★☆☆ Facile",
+        diffClass: "easy" // cyan
     }
 ];
 
@@ -122,6 +131,12 @@ function renderGamesCatalog() {
             previewHtml = `
                 <div class="card-preview scratch-bg-3" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351612590.png')">
                     <div class="preview-overlay">🔺 GEOMETRY DASH 1</div>
+                </div>
+            `;
+        } else if (game.id === 'scratch_esquive_crane_oeuf') {
+            previewHtml = `
+                <div class="card-preview scratch-bg-4" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351870577.png')">
+                    <div class="preview-overlay">🥚 ESQUIVE CRANE D'OEUF</div>
                 </div>
             `;
         } else {
