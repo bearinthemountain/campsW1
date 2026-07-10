@@ -228,6 +228,14 @@ body {
     font-size: 4rem;
 }
 
+.scratch-bg-5 {
+    background-image: radial-gradient(circle, #00e5ff 0%, #002d33 100%);
+}
+.scratch-bg-5::before {
+    content: '🛡️';
+    font-size: 4rem;
+}
+
 .scratch-bg-custom {
     background-image: radial-gradient(circle, #9c27b0 0%, #1a0033 100%);
 }

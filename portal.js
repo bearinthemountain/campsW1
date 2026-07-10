@@ -44,6 +44,15 @@ const DEFAULT_GAMES = [
         src: "1351870577",
         difficulty: "★☆☆ Facile",
         diffClass: "easy" // cyan
+    },
+    {
+        id: "scratch_tower_defense",
+        title: "Tower Defense",
+        desc: "Un jeu de tower defense palpitant créé sur Scratch par copyrater. Quelque chose ne tourne pas rond à Sustopia... Éliminez les poissons !",
+        type: "scratch",
+        src: "1351865785",
+        difficulty: "★★☆ Moyen",
+        diffClass: "normal" // yellow
     }
 ];
 
@@ -137,6 +146,12 @@ function renderGamesCatalog() {
             previewHtml = `
                 <div class="card-preview scratch-bg-4" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351870577.png')">
                     <div class="preview-overlay">🥚 ESQUIVE CRANE D'OEUF</div>
+                </div>
+            `;
+        } else if (game.id === 'scratch_tower_defense') {
+            previewHtml = `
+                <div class="card-preview scratch-bg-5" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351865785.png')">
+                    <div class="preview-overlay">🛡️ TOWER DEFENSE</div>
                 </div>
             `;
         } else {
