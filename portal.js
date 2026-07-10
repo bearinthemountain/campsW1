@@ -53,6 +53,15 @@ const DEFAULT_GAMES = [
         src: "1351865785",
         difficulty: "★★☆ Moyen",
         diffClass: "normal" // yellow
+    },
+    {
+        id: "scratch_untitled_2",
+        title: "Untitled-2",
+        desc: "Un projet mystérieux créé sur Scratch par gorryaz. Lancez la partie pour découvrir son univers !",
+        type: "scratch",
+        src: "1351854859",
+        difficulty: "★★☆ Moyen",
+        diffClass: "normal" // yellow
     }
 ];
 
@@ -152,6 +161,12 @@ function renderGamesCatalog() {
             previewHtml = `
                 <div class="card-preview scratch-bg-5" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351865785.png')">
                     <div class="preview-overlay">🛡️ TOWER DEFENSE</div>
+                </div>
+            `;
+        } else if (game.id === 'scratch_untitled_2') {
+            previewHtml = `
+                <div class="card-preview scratch-bg-6" style="background-image: url('https://uploads.scratch.mit.edu/projects/thumbnails/1351854859.png')">
+                    <div class="preview-overlay">👾 UNTITLED-2</div>
                 </div>
             `;
         } else {
