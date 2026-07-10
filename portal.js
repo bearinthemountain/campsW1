@@ -3,7 +3,7 @@ const DEFAULT_GAMES = [
     {
         id: "zombie_stadium",
         title: "Zombie Stadium",
-        desc: "FPS 2D rétro-arcade. Shootez des ballons de foot sur les zombies pour survivre et trouvez le téléphone pour appeler les secours !",
+        desc: "FPS 2D rétro-arcade (Édition Internationale). Choisissez votre terrain (Stade, Vestiaires, Parking), shootez des ballons sur les zombies et sécurisez l'objectif !",
         type: "js",
         src: "./zombie_stadium.html",
         difficulty: "★★☆ Difficile",

@@ -1,2315 +1,875 @@
-// --- CONFIGURATION DU JEU ---
-const MAP_SIZE = 24;
-const MAP = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-    [1,0,2,2,2,0,1,0,2,2,2,2,2,2,2,0,1,0,3,3,3,3,0,1],
-    [1,0,2,0,0,0,1,0,2,0,0,0,0,0,2,0,1,0,3,0,0,3,0,1],
-    [1,0,2,0,2,2,2,0,2,0,2,2,2,0,2,0,1,0,3,0,0,3,0,1],
-    [1,0,0,0,0,0,0,0,0,0,2,0,2,0,0,0,0,0,3,0,0,3,0,1],
-    [1,2,2,0,2,2,2,0,2,0,2,0,2,0,2,0,1,1,3,0,0,3,0,1],
-    [1,0,0,0,2,0,0,0,2,0,0,0,0,0,2,0,1,0,0,0,0,0,0,1],
-    [1,0,2,2,2,0,2,2,2,2,2,2,0,2,2,0,1,0,3,3,3,3,0,1],
-    [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-    [1,1,1,1,1,0,1,0,4,4,4,0,4,4,4,0,1,0,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,4,4,4,4,4,4,0,0,0,0,0,0,4,4,4,4,4,4,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,0,1,1,1,1,1,0,0,1,1,1,1,1,0,1,1,1,1,1],
-    [1,0,0,0,1,0,1,0,0,0,1,0,0,1,0,0,0,1,0,1,0,0,0,1],
-    [1,0,2,0,1,0,1,0,3,0,1,0,0,1,0,3,0,1,0,1,0,2,0,1],
-    [1,0,2,0,0,0,0,0,3,0,0,0,0,0,0,3,0,0,0,0,0,2,0,1],
-    [1,0,2,2,2,2,2,2,3,3,3,3,3,3,3,3,2,2,2,2,2,2,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-];
+// ==========================================
+// CONFIGURATION & CONFIG DU JEU
+// ==========================================
+const MAP_WIDTH = 24;
+const MAP_HEIGHT = 24;
 
-// --- CLASSES DE JOUEURS ---
-const PLAYER_CLASSES = {
-    striker: {
-        name: "L'ATTAQUANT",
-        maxHealth: 100,
-        speed: 0.11,
-        shootCooldown: 300, // ms
-        damage: 30,
-        staminaRegen: 0.05
-    },
-    defender: {
-        name: "LE DÉFENSEUR",
-        maxHealth: 180,
-        speed: 0.08,
-        shootCooldown: 600,
-        damage: 40,
-        staminaRegen: 0.03
-    },
-    midfielder: {
-        name: "LE MILIEU",
-        maxHealth: 100,
-        speed: 0.14,
-        shootCooldown: 400,
-        damage: 20,
-        staminaRegen: 0.09
-    }
+let GAME_MAP = [];
+
+// Paramètres de thèmes et de maps
+const MAP_THEMES = {
+    STADIUM: 'STADIUM',
+    LOCKER_ROOM: 'LOCKER_ROOM',
+    PARKING: 'PARKING'
+};
+let currentTheme = MAP_THEMES.STADIUM;
+
+// Commandes personnalisables
+const KEY_BINDINGS = {
+    FORWARD: 'w',
+    BACKWARD: 's',
+    STRAFE_LEFT: 'a',
+    STRAFE_RIGHT: 'd',
+    INTERACT: 'e'
 };
 
-// --- SYNTHÉTISEUR AUDIO RETRO (Web Audio API) ---
-const audio = {
-    ctx: null,
-    muted: false,
-    synthInterval: null,
-    
-    init() {
-        if (this.ctx) return;
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContextClass();
-    },
-    
-    toggleMute() {
-        this.muted = !this.muted;
-        if (this.muted) {
-            this.stopMusic();
-        } else {
-            this.startMusic();
-        }
-        return this.muted;
-    },
-    
-    playKick() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(140, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.15);
-        
-        gain.gain.setValueAtTime(0.6, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-    },
-    
-    playHit() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const bufferSize = ctx.sampleRate * 0.08;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
-        
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 800;
-        
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.4, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-        
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        
-        noise.start();
-        noise.stop(ctx.currentTime + 0.08);
-    },
-    
-    playHurt() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(110, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(50, ctx.currentTime + 0.2);
-        
-        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-        
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-    },
-    
-    playGroan() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const osc = ctx.createOscillator();
-        const filter = ctx.createBiquadFilter();
-        const gain = ctx.createGain();
-        
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(70 + Math.random() * 20, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(45, ctx.currentTime + 0.6);
-        
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(250, ctx.currentTime);
-        
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-        
-        osc.start();
-        osc.stop(ctx.currentTime + 0.6);
-    },
-    
-    playPhoneRing() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const now = ctx.currentTime;
-        
-        const playBeep = (time) => {
-            const osc1 = ctx.createOscillator();
-            const osc2 = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            osc1.connect(gain);
-            osc2.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc1.type = 'sine';
-            osc1.frequency.value = 850;
-            osc2.type = 'sine';
-            osc2.frequency.value = 950;
-            
-            gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(0.2, time + 0.05);
-            gain.gain.setValueAtTime(0.2, time + 0.2);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
-            
-            osc1.start(time);
-            osc2.start(time);
-            osc1.stop(time + 0.25);
-            osc2.stop(time + 0.25);
-        };
-        
-        playBeep(now);
-        playBeep(now + 0.35);
-    },
-    
-    playWin() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const now = ctx.currentTime;
-        const notes = [130.81, 164.81, 196.00, 261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
-        
-        notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = 'triangle';
-            osc.frequency.value = freq;
-            
-            const time = now + i * 0.09;
-            gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(0.2, time + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
-            
-            osc.start(time);
-            osc.stop(time + 0.25);
-        });
-    },
-    
-    playLose() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const now = ctx.currentTime;
-        const notes = [293.66, 277.18, 261.63, 220.00, 196.00, 146.83];
-        
-        notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = 'sawtooth';
-            osc.frequency.value = freq;
-            
-            const time = now + i * 0.18;
-            gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(0.3, time + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
-            
-            osc.start(time);
-            osc.stop(time + 0.35);
-        });
-    },
-    
-    playHeal() {
-        if (this.muted || !this.ctx) return;
-        const ctx = this.ctx;
-        const now = ctx.currentTime;
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-        
-        notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now + i * 0.07);
-            
-            const time = now + i * 0.07;
-            gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(0.2, time + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-            
-            osc.start(time);
-            osc.stop(time + 0.15);
-        });
-    },
-
-    startMusic() {
-        if (this.muted || !this.ctx) return;
-        this.stopMusic();
-        
-        let step = 0;
-        const freqs = [55.00, 55.00, 48.99, 48.99, 43.65, 43.65, 38.89, 41.20]; // A1, G1, F1, D#1/E1
-        
-        this.synthInterval = setInterval(() => {
-            if (!this.ctx || this.muted) return;
-            const ctx = this.ctx;
-            const now = ctx.currentTime;
-            
-            // Bass saw
-            const osc = ctx.createOscillator();
-            const filter = ctx.createBiquadFilter();
-            const gain = ctx.createGain();
-            
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(freqs[step % freqs.length], now);
-            
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(180, now);
-            filter.frequency.exponentialRampToValueAtTime(500, now + 0.08);
-            filter.frequency.exponentialRampToValueAtTime(100, now + 0.22);
-            
-            gain.gain.setValueAtTime(0.14, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-            
-            osc.start(now);
-            osc.stop(now + 0.25);
-            
-            // Hats
-            if (step % 2 === 0) {
-                const bufferSize = ctx.sampleRate * 0.015;
-                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-                
-                const hh = ctx.createBufferSource();
-                hh.buffer = buffer;
-                
-                const hhFilter = ctx.createBiquadFilter();
-                hhFilter.type = 'highpass';
-                hhFilter.frequency.value = 8000;
-                
-                const hhGain = ctx.createGain();
-                hhGain.gain.setValueAtTime(0.012, now);
-                hhGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
-                
-                hh.connect(hhFilter);
-                hhFilter.connect(hhGain);
-                hhGain.connect(ctx.destination);
-                
-                hh.start(now);
-                hh.stop(now + 0.015);
-            }
-            
-            // Snare on 2 and 6
-            if (step % 4 === 2) {
-                const bufferSize = ctx.sampleRate * 0.06;
-                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-                
-                const sn = ctx.createBufferSource();
-                sn.buffer = buffer;
-                
-                const snFilter = ctx.createBiquadFilter();
-                snFilter.type = 'bandpass';
-                snFilter.frequency.value = 1100;
-                
-                const snGain = ctx.createGain();
-                snGain.gain.setValueAtTime(0.025, now);
-                snGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-                
-                sn.connect(snFilter);
-                snFilter.connect(snGain);
-                snGain.connect(ctx.destination);
-                
-                sn.start(now);
-                sn.stop(now + 0.06);
-            }
-            
-            step++;
-        }, 280); // ~107 BPM
-    },
-    
-    stopMusic() {
-        if (this.synthInterval) {
-            clearInterval(this.synthInterval);
-            this.synthInterval = null;
-        }
-    }
+let player = {
+    x: 1.5,
+    y: 1.5,
+    dirX: 1.0,
+    dirY: 0.0,
+    planeX: 0.0,
+    planeY: 0.66,
+    health: 100,
+    score: 0,
+    kills: 0,
+    stamina: 100,
+    lastDamageTime: 0
 };
 
-// --- GÉNÉRATEUR GRAPHISME PROCÉDURAL (Canvas cache) ---
-const textures = [];
-const spritesGen = {
-    zombieNormalWalk1: null,
-    zombieNormalWalk2: null,
-    zombieNormalHurt: null,
-    
-    zombieRunnerWalk1: null,
-    zombieRunnerWalk2: null,
-    zombieRunnerHurt: null,
-    
-    zombieTankWalk1: null,
-    zombieTankWalk2: null,
-    zombieTankHurt: null,
-    
-    football1: null,
-    football2: null,
-    football3: null,
-    football4: null,
-    
-    phone: null,
-    
-    playerFootIdle: null,
-    playerFootKick1: null,
-    playerFootKick2: null,
-    playerFootKick3: null,
-    init() {
-        // 1. Génération des Textures de Murs en Haute Résolution (128x128)
-        textures[0] = this.createConcreteTexture();
-        textures[1] = this.createLockerTexture();
-        textures[2] = this.createCyberGridTexture();
-        textures[3] = this.createGoalNetTexture();
-        
-        // 2. Génération des Sprites Zombies (64x64)
-        // Zombie Normal (Violet)
-        this.zombieNormalWalk1 = this.createZombieCanvas('#7b1fa2', 1, false, 1.0);
-        this.zombieNormalWalk2 = this.createZombieCanvas('#7b1fa2', 2, false, 1.0);
-        this.zombieNormalHurt = this.createZombieCanvas('#ff1744', 1, true, 1.0);
-        
-        // Zombie Rapide (Rouge)
-        this.zombieRunnerWalk1 = this.createZombieCanvas('#c62828', 1, false, 0.8);
-        this.zombieRunnerWalk2 = this.createZombieCanvas('#c62828', 2, false, 0.8);
-        this.zombieRunnerHurt = this.createZombieCanvas('#ff1744', 1, true, 0.8);
-        
-        // Zombie Tank (Jaune)
-        this.zombieTankWalk1 = this.createZombieCanvas('#f57f17', 1, false, 1.3);
-        this.zombieTankWalk2 = this.createZombieCanvas('#f57f17', 2, false, 1.3);
-        this.zombieTankHurt = this.createZombieCanvas('#ff1744', 1, true, 1.3);
-        
-        // 3. Génération des Ballons de foot animés (32x32)
-        this.football1 = this.createFootballCanvas(0);
-        this.football2 = this.createFootballCanvas(1);
-        this.football3 = this.createFootballCanvas(2);
-        this.football4 = this.createFootballCanvas(3);
-        
-        // 4. Génération de la Cabine Téléphonique d'Arcade (64x64)
-        this.phone = this.createPhoneCanvas();
-        
-        // 5. Génération du pied du joueur de foot (128x128)
-        this.playerFootIdle = this.createPlayerFootCanvas('idle');
-        this.playerFootKick1 = this.createPlayerFootCanvas('kick1');
-        this.playerFootKick2 = this.createPlayerFootCanvas('kick2');
-        this.playerFootKick3 = this.createPlayerFootCanvas('kick3');
+let weaponWeaponBob = 0;
+let weaponRecoil = 0;
 
-        // 6. Génération de la Gourde de Sport de Soin (32x32)
-        this.waterBottle = this.createWaterBottleCanvas();
-    },
+let zombies = [];
+let balls = [];
+let keys = {};
+let zBuffer = [];
+
+let ctx = null;
+let gameLoopId = null;
+let isMuted = false;
+let isCrtOn = true;
+let isPaused = false;
+
+// Coordonnées de l'objectif physique de fin de niveau
+let goalX = 22.5;
+let goalY = 22.5;
+let canInteractWithGoal = false;
+
+// Frames d'animations et buffers de textures pour éviter le flou et les bugs
+let zombieFrames = []; 
+let goalSpriteBuffer = null;
+let wallTextureBuffer = null;
+
+// ==========================================
+// INITIALISATION & ÉCOUTEURS D'ÉVÉNEMENTS
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    const gameCanvas = document.getElementById('game-canvas');
+    if (gameCanvas) {
+        ctx = gameCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false; // Désactive le lissage pour un rendu Pixel-Art net
+    }
+
+    generateAdvancedZombieSprites();
+    generateGoalSprite();
+    updateWallTexture(); 
+    setupMenuControls();
+    setupInputControls();
+});
+
+// Génère les textures d'animation pour simuler la marche 3D des zombies
+function generateAdvancedZombieSprites() {
+    zombieFrames = [];
     
-    // Texture 1 : Béton de stade rétro ultra texturé en 128x128 (Effet 3D biseauté et fissures)
-    createConcreteTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        
-        // Fond gris béton
-        ctx.fillStyle = '#262938';
-        ctx.fillRect(0, 0, 128, 128);
-        
-        // Grain du béton (Texture bruitée de haute intensité)
-        for(let i=0; i<350; i++) {
-            ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.12)';
-            ctx.fillRect(Math.random()*128, Math.random()*128, 2, 2);
-        }
-        
-        // Découpe en blocs (4 blocs de 64x64)
-        ctx.strokeStyle = '#10121a';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(0, 0, 128, 128);
-        ctx.beginPath();
-        ctx.moveTo(0, 64); ctx.lineTo(128, 64);
-        ctx.moveTo(64, 0); ctx.lineTo(64, 128);
-        ctx.stroke();
-        
-        // Relief 3D de chaque bloc (Biseaux clairs et ombres)
-        ctx.lineWidth = 2;
-        const blocks = [
-            {x: 0, y: 0}, {x: 64, y: 0},
-            {x: 0, y: 64}, {x: 64, y: 64}
-        ];
-        
-        blocks.forEach(b => {
-            // Côtés lumineux (Haut et Gauche)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.beginPath();
-            ctx.moveTo(b.x + 2, b.y + 62);
-            ctx.lineTo(b.x + 2, b.y + 2);
-            ctx.lineTo(b.x + 62, b.y + 2);
-            ctx.stroke();
-            
-            // Côtés sombres (Bas et Droite)
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-            ctx.beginPath();
-            ctx.moveTo(b.x + 2, b.y + 62);
-            ctx.lineTo(b.x + 62, b.y + 62);
-            ctx.lineTo(b.x + 62, b.y + 2);
-            ctx.stroke();
-        });
-        
-        // Fissures rétro dans le béton
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        // Fissure bloc 1
-        ctx.moveTo(10, 15); ctx.lineTo(18, 22); ctx.lineTo(15, 30); ctx.lineTo(24, 38);
-        // Fissure bloc 4
-        ctx.moveTo(80, 85); ctx.lineTo(95, 88); ctx.lineTo(100, 102);
-        ctx.stroke();
-        
-        // Néons cyan de marquage stade (Haute luminosité)
-        ctx.save();
-        ctx.strokeStyle = '#00f3ff';
-        ctx.shadowColor = '#00f3ff';
-        ctx.shadowBlur = 8;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(0, 32); ctx.lineTo(128, 32);
-        ctx.moveTo(0, 96); ctx.lineTo(128, 96);
-        ctx.stroke();
-        ctx.restore();
-        
-        return canvas;
-    },
-    
-    // Texture 2 : Casiers métalliques 128x128 (Rivets, grilles de ventilation, cadenas et rayures)
-    createLockerTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        
-        // Fond métal bleu-gris bleuté
-        ctx.fillStyle = '#455a64';
-        ctx.fillRect(0, 0, 128, 128);
-        
-        // Découpe des deux portes de casiers
-        ctx.strokeStyle = '#1d272c';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(0, 0, 128, 128);
-        ctx.strokeRect(6, 6, 54, 116);
-        ctx.strokeRect(68, 6, 54, 116);
-        
-        // Biseaux lumineux sur les casiers
-        ctx.strokeStyle = '#78909c';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        // Casier Gauche
-        ctx.moveTo(8, 120); ctx.lineTo(8, 8); ctx.lineTo(58, 8);
-        // Casier Droit
-        ctx.moveTo(70, 120); ctx.lineTo(70, 8); ctx.lineTo(120, 8);
-        ctx.stroke();
-        
-        // Grilles d'aération (6 fentes horizontales sombres bevelées par porte)
-        const drawVents = (xOffset) => {
-            ctx.fillStyle = '#1a2327';
-            ctx.strokeStyle = '#78909c';
-            ctx.lineWidth = 1;
-            for (let y = 18; y < 50; y += 8) {
-                ctx.fillRect(xOffset, y, 30, 4);
-                ctx.beginPath();
-                ctx.moveTo(xOffset, y + 4);
-                ctx.lineTo(xOffset + 30, y + 4);
-                ctx.stroke();
-            }
-        };
-        drawVents(18);
-        drawVents(80);
-        
-        // Rivets de fixation du métal (petits cercles métalliques)
-        ctx.fillStyle = '#cfd8dc';
-        const rivetCoords = [
-            {x: 10, y: 10}, {x: 52, y: 10}, {x: 10, y: 114}, {x: 52, y: 114},
-            {x: 72, y: 10}, {x: 114, y: 10}, {x: 72, y: 114}, {x: 114, y: 114}
-        ];
-        rivetCoords.forEach(r => {
-            ctx.beginPath();
-            ctx.arc(r.x, r.y, 2, 0, Math.PI*2);
-            ctx.fill();
-        });
-        
-        // Poignées et cadenas en or métallique
-        ctx.fillStyle = '#ffd700'; // Or
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 4;
-        ctx.fillRect(52, 60, 4, 14); // Serrure G
-        ctx.fillRect(72, 60, 4, 14); // Serrure D
-        ctx.shadowBlur = 0;
-        
-        // Bandes de sécurité warning jaune/noir en bas (128x128)
-        ctx.save();
-        ctx.rect(4, 100, 120, 24);
-        ctx.clip();
-        ctx.fillStyle = '#ffea00';
-        ctx.fillRect(4, 100, 120, 24);
-        ctx.fillStyle = '#111';
-        ctx.lineWidth = 8;
-        for(let i=-20; i<150; i+=20) {
-            ctx.beginPath();
-            ctx.moveTo(i, 100); ctx.lineTo(i+16, 128);
-            ctx.stroke();
-        }
-        ctx.restore();
-        
-        // Rayures / Griffures de combat
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(15, 60); ctx.lineTo(30, 80);
-        ctx.moveTo(85, 75); ctx.lineTo(95, 95);
-        ctx.stroke();
-        
-        return canvas;
-    },
-    
-    // Texture 3 : Grille Cyber-Punk Magenta 128x128 (Double grille et motifs de puces laser)
-    createCyberGridTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        
-        // Fond noir spatial / néon bleu sous-jacent
-        ctx.fillStyle = '#060815';
-        ctx.fillRect(0, 0, 128, 128);
-        
-        // Sous-grille violette de fond (Effet de profondeur)
-        ctx.strokeStyle = '#281140';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (let i = 8; i < 128; i += 8) {
-            ctx.moveTo(i, 0); ctx.lineTo(i, 128);
-            ctx.moveTo(0, i); ctx.lineTo(128, i);
-        }
-        ctx.stroke();
-        
-        // Grille principale magenta brillante
-        ctx.strokeStyle = '#ff007f';
-        ctx.shadowColor = '#ff007f';
-        ctx.shadowBlur = 6;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(0, 0, 128, 128);
-        
-        ctx.beginPath();
-        for (let i = 32; i < 128; i += 32) {
-            ctx.moveTo(i, 0); ctx.lineTo(i, 128);
-            ctx.moveTo(0, i); ctx.lineTo(128, i);
-        }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        
-        // Motifs technologiques laser dans les coins
-        ctx.fillStyle = '#00f3ff'; // Cyan
-        ctx.fillRect(14, 14, 4, 4);
-        ctx.fillRect(46, 14, 4, 4);
-        ctx.fillRect(14, 46, 4, 4);
-        ctx.fillRect(78, 14, 4, 4);
-        
-        return canvas;
-    },
-    
-    // Texture 4 : Filet de But & Gazon texturé 128x128 (Brins d'herbe haute définition et cadre)
-    createGoalNetTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        
-        // Gazon de fond (Vert stade foncé)
-        ctx.fillStyle = '#1c3310';
-        ctx.fillRect(0, 0, 128, 128);
-        
-        // Dessin des brins d'herbe individuels (effet gazon texturé)
-        for (let i = 0; i < 400; i++) {
-            const gx = Math.random() * 128;
-            const gy = Math.random() * 128;
-            const gh = 3 + Math.random() * 5;
-            ctx.strokeStyle = Math.random() < 0.5 ? '#2d5418' : '#14250b';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(gx, gy);
-            ctx.lineTo(gx + (Math.random() - 0.5) * 2, gy - gh);
-            ctx.stroke();
-        }
-        
-        // Montants métalliques du but (Rouges et Blancs) bevilés sur la gauche
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 16, 128);
-        // Bandes rouges
-        ctx.fillStyle = '#d32f2f';
-        ctx.fillRect(0, 0, 16, 24);
-        ctx.fillRect(0, 48, 16, 24);
-        ctx.fillRect(0, 96, 16, 24);
-        
-        // Biseau d'acier sur le poteau de but
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.fillRect(2, 0, 3, 128);
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(13, 0, 3, 128);
-        
-        // Grille du filet de but (Lignes blanches diagonales fines)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.shadowColor = 'rgba(0,0,0,0.3)';
-        ctx.shadowBlur = 2;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (let i = -128; i < 256; i += 16) {
-            ctx.moveTo(i, 0); ctx.lineTo(i + 128, 128);
-            ctx.moveTo(i + 128, 0); ctx.lineTo(i, 128);
-        }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        
-        return canvas;
-    },
-    
-    // Dessine le sprite 2D du zombie à projeter en 3D
-    createZombieCanvas(colorJersey, frame, isHurt, scale) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        
-        // Si touché, effet flash rouge/blanc
-        if (isHurt) {
-            ctx.fillStyle = '#ff3131';
-            ctx.beginPath();
-            ctx.arc(32, 32, 28, 0, Math.PI*2);
-            ctx.fill();
-            return canvas;
-        }
-        
-        ctx.save();
-        ctx.translate(32, 32);
-        ctx.scale(scale, scale);
-        ctx.translate(-32, -32);
-        
-        // 1. Tête verte zombie
-        ctx.fillStyle = '#4caf50';
-        ctx.fillRect(24, 8, 16, 16);
-        
-        // Yeux jaunes brillants
-        ctx.fillStyle = '#ffea00';
-        ctx.fillRect(27, 12, 3, 3);
-        ctx.fillRect(34, 12, 3, 3);
-        
-        // Bouche béante noire/rouge
-        ctx.fillStyle = '#212121';
-        ctx.fillRect(28, 18, 8, 4);
-        ctx.fillStyle = '#d32f2f';
-        ctx.fillRect(30, 20, 4, 2);
-        
-        // 2. Torse maillot de foot
-        ctx.fillStyle = colorJersey;
-        ctx.fillRect(20, 24, 24, 22);
-        
-        // Numéro de maillot "13"
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 8px Courier New';
-        ctx.textAlign = 'center';
-        ctx.fillText('13', 32, 36);
-        
-        // Col du maillot
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.moveTo(28, 24); ctx.lineTo(32, 29); ctx.lineTo(36, 24);
-        ctx.fill();
-        
-        // 3. Bras tendus
-        ctx.fillStyle = '#4caf50';
-        if (frame === 1) {
-            // Bras gauche plus haut, bras droit plus bas
-            ctx.fillRect(10, 20, 10, 6); // Bras G
-            ctx.fillRect(44, 25, 10, 6); // Bras D
-        } else {
-            // Bras droit plus haut, bras gauche plus bas
-            ctx.fillRect(10, 25, 10, 6); // Bras G
-            ctx.fillRect(44, 20, 10, 6); // Bras D
-        }
-        
-        // Mains vertes
-        ctx.fillStyle = '#388e3c';
-        ctx.fillRect(frame === 1 ? 6 : 8, 20, 4, 6);
-        ctx.fillRect(frame === 1 ? 54 : 52, 25, 4, 6);
-        
-        // 4. Jambes / Shorts
-        ctx.fillStyle = '#1a1a1a'; // Short
-        ctx.fillRect(20, 46, 24, 6);
-        
-        // Jambes vertes
-        ctx.fillStyle = '#4caf50';
-        ctx.fillRect(24, 52, 6, 8);
-        ctx.fillRect(34, 52, 6, 8);
-        
-        // Crampons/chaussures noires
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(22, 60, 8, 4);
-        ctx.fillRect(34, 60, 8, 4);
-        
-        ctx.restore();
-        return canvas;
-    },
-    
-    // Ballon de foot avec effet de rotation
-    createFootballCanvas(frame) {
+    for (let frame = 0; frame < 2; frame++) {
         const canvas = document.createElement('canvas');
         canvas.width = 32;
         canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        
-        ctx.save();
-        ctx.translate(16, 16);
-        ctx.rotate((frame * 90) * Math.PI / 180);
-        ctx.translate(-16, -16);
-        
-        // Cercle extérieur blanc
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(16, 16, 14, 0, Math.PI*2);
-        ctx.fill();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Pentagones de ballon de foot retro
-        ctx.fillStyle = '#000000';
-        
-        // Centre
-        ctx.beginPath();
-        ctx.arc(16, 16, 4, 0, Math.PI*2);
-        ctx.fill();
-        
-        // Lignes radiales et petits motifs sur les bords
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        
-        const angles = [0, 72, 144, 216, 288];
-        angles.forEach(ang => {
-            const rad = ang * Math.PI / 180;
-            ctx.beginPath();
-            ctx.moveTo(16, 16);
-            ctx.lineTo(16 + Math.cos(rad)*14, 16 + Math.sin(rad)*14);
-            ctx.stroke();
-            
-            // Polygone sur le bord
-            ctx.beginPath();
-            ctx.arc(16 + Math.cos(rad)*11, 16 + Math.sin(rad)*11, 2.5, 0, Math.PI*2);
-            ctx.fill();
-        });
-        
-        ctx.restore();
-        return canvas;
-    },
-    
-    // Cabine téléphonique dorée / Objectif
-    createPhoneCanvas() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        
-        // Lueur néon jaune extérieure
-        ctx.shadowColor = '#ffea00';
-        ctx.shadowBlur = 10;
-        
-        // 1. Structure de la cabine
-        ctx.fillStyle = '#ffd700'; // Or métallique
-        ctx.fillRect(18, 4, 28, 56);
-        
-        ctx.fillStyle = '#0d0d0d'; // Intérieur sombre
-        ctx.fillRect(22, 8, 20, 48);
-        
-        ctx.shadowBlur = 0; // Reset ombre pour les détails
-        
-        // 2. Vitres
-        ctx.fillStyle = 'rgba(0, 243, 255, 0.4)'; // Cyan translucide
-        ctx.fillRect(24, 12, 16, 12);
-        ctx.fillRect(24, 28, 16, 12);
-        
-        // Barres de fenêtres en or
-        ctx.fillStyle = '#ffd700';
-        ctx.fillRect(31, 12, 2, 28);
-        ctx.fillRect(24, 17, 16, 2);
-        ctx.fillRect(24, 33, 16, 2);
-        
-        // 3. Téléphone à l'intérieur
-        ctx.fillStyle = '#ff007f'; // Smartphone néon rose à l'intérieur
-        ctx.fillRect(29, 44, 6, 8);
-        ctx.fillStyle = '#ffffff'; // Écran allumé
-        ctx.fillRect(30, 45, 4, 4);
-        
-        // 4. Logo Téléphone en haut
-        ctx.fillStyle = '#ffd700';
-        ctx.fillRect(18, 2, 28, 4);
-        
-        return canvas;
-    },
-    
-    // Jambe / pied du joueur de foot (Boot & socks)
-    createPlayerFootCanvas(state) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 256;
-        const ctx = canvas.getContext('2d');
-        
-        if (state === 'idle') {
-            // Pied au repos en bas à droite
-            ctx.save();
-            ctx.translate(140, 110);
-            
-            // Jambe inclinée (chaussette rayée rouge et blanche)
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 35;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(30, 30);
-            ctx.lineTo(80, 120);
-            ctx.stroke();
-            
-            // Rayures rouges sur la chaussette
-            ctx.strokeStyle = '#ff3131';
-            ctx.lineWidth = 35;
-            ctx.setLineDash([15, 20]);
-            ctx.beginPath();
-            ctx.moveTo(30, 30);
-            ctx.lineTo(80, 120);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Chaussure de foot noire
-            ctx.fillStyle = '#111111';
-            ctx.beginPath();
-            ctx.ellipse(30, 120, 45, 20, 20 * Math.PI / 180, 0, Math.PI*2);
-            ctx.fill();
-            
-            // Bandes blanches rétro sur la chaussure
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(10, 110); ctx.lineTo(25, 125);
-            ctx.moveTo(18, 108); ctx.lineTo(33, 123);
-            ctx.stroke();
-            
-            // Crampons sous la chaussure
-            ctx.fillStyle = '#dddddd';
-            ctx.fillRect(5, 137, 6, 6);
-            ctx.fillRect(20, 139, 6, 6);
-            ctx.fillRect(40, 135, 6, 6);
-            
-            // Petit ballon sous le pied au repos
-            ctx.restore();
-        } 
-        else if (state === 'kick1') {
-            // Préparation : Jambe tirée vers l'arrière
-            ctx.save();
-            ctx.translate(160, 140);
-            ctx.scale(0.9, 0.9);
-            
-            // Jambe
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 35;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(40, 10);
-            ctx.lineTo(90, 100);
-            ctx.stroke();
-            
-            ctx.strokeStyle = '#ff3131';
-            ctx.lineWidth = 35;
-            ctx.setLineDash([15, 20]);
-            ctx.beginPath();
-            ctx.moveTo(40, 10);
-            ctx.lineTo(90, 100);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Chaussure
-            ctx.fillStyle = '#111111';
-            ctx.beginPath();
-            ctx.ellipse(35, 105, 42, 18, 30 * Math.PI / 180, 0, Math.PI*2);
-            ctx.fill();
-            
-            ctx.restore();
-        } 
-        else if (state === 'kick2') {
-            // Frappe : pied au centre de l'écran, grand, de face
-            ctx.save();
-            ctx.translate(128, 140);
-            
-            // Traînées d'action / vent cyan
-            ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)';
-            ctx.shadowColor = '#00f3ff';
-            ctx.shadowBlur = 8;
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.moveTo(-60, 50); ctx.lineTo(-100, 70);
-            ctx.moveTo(60, 50); ctx.lineTo(100, 70);
-            ctx.moveTo(0, 80); ctx.lineTo(0, 130);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-            
-            // Jambe droite arrivant de l'arrière
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 45;
-            ctx.beginPath();
-            ctx.moveTo(0, 80); ctx.lineTo(0, 40);
-            ctx.stroke();
-            
-            ctx.strokeStyle = '#ff3131';
-            ctx.lineWidth = 45;
-            ctx.beginPath();
-            ctx.moveTo(0, 65); ctx.lineTo(0, 45);
-            ctx.stroke();
-            
-            // Grosse chaussure de face/profil
-            ctx.fillStyle = '#111111';
-            ctx.beginPath();
-            ctx.ellipse(0, 20, 60, 32, 0, 0, Math.PI*2);
-            ctx.fill();
-            
-            // Bandes de la chaussure
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.moveTo(-15, -10); ctx.lineTo(-15, 20);
-            ctx.moveTo(0, -15); ctx.lineTo(0, 20);
-            ctx.stroke();
-            
-            // Crampons gris
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(-40, 45, 12, 8);
-            ctx.fillRect(-10, 48, 12, 8);
-            ctx.fillRect(20, 45, 12, 8);
-            
-            ctx.restore();
-        } 
-        else if (state === 'kick3') {
-            // Retour de frappe / Flouté
-            ctx.save();
-            ctx.translate(135, 125);
-            ctx.globalAlpha = 0.7; // Légère transparence
-            
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 38;
-            ctx.beginPath();
-            ctx.moveTo(25, 25); ctx.lineTo(80, 115);
-            ctx.stroke();
-            
-            ctx.fillStyle = '#222222';
-            ctx.beginPath();
-            ctx.ellipse(25, 115, 45, 20, 10 * Math.PI / 180, 0, Math.PI*2);
-            ctx.fill();
-            
-            ctx.restore();
-        }
-        
-        return canvas;
-    },
+        const zCtx = canvas.getContext('2d');
+        zCtx.imageSmoothingEnabled = false;
 
-    createWaterBottleCanvas() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        
-        // Lueur néon verte
-        ctx.shadowColor = '#39ff14';
-        ctx.shadowBlur = 4;
-        
-        // Dessin d'une gourde de sport
-        // Corps de la gourde (Rouge sport avec bande blanche)
-        ctx.fillStyle = '#ff3131';
-        ctx.fillRect(10, 10, 12, 18);
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(10, 16, 12, 4); // Bande blanche
-        
-        // Croix verte de soin
-        ctx.fillStyle = '#39ff14';
-        ctx.fillRect(15, 17, 2, 2);
-        ctx.fillRect(14, 18, 4, 1);
-        
-        // Bouchon
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#111111';
-        ctx.fillRect(13, 6, 6, 4); // Goulot
-        ctx.fillStyle = '#ffea00';
-        ctx.fillRect(14, 3, 4, 3); // Tétine jaune
-        
-        return canvas;
-    }
-};
+        // Ombre portée au sol
+        zCtx.fillStyle = 'rgba(0,0,0,0.3)';
+        zCtx.beginPath();
+        zCtx.ellipse(16, 30, 8, 2, 0, 0, Math.PI * 2);
+        zCtx.fill();
 
-// --- CLASSES ET OBJETS DE JEU ---
+        // Tête / Peau de monstre
+        zCtx.fillStyle = '#3f6212'; 
+        zCtx.fillRect(12, 2, 8, 8);
+        zCtx.fillStyle = '#65a30d'; 
+        zCtx.fillRect(13, 3, 6, 6);
 
-// Le Joueur
-class Player {
-    constructor() {
-        this.x = 22.0; // Coordonnées de départ (proche du bas droit)
-        this.y = 22.0;
+        // Yeux Rouges Lumineux
+        zCtx.fillStyle = '#ef4444';
+        zCtx.fillRect(14, 4, 1, 2);
+        zCtx.fillRect(17, 4, 1, 2);
+
+        // Torse (Maillot d'équipe adverse)
+        zCtx.fillStyle = '#991b1b'; 
+        zCtx.fillRect(10, 10, 12, 12);
         
-        // Vecteur direction (regarde vers le haut/gauche)
-        this.dirX = -1.0;
-        this.dirY = 0.0;
-        
-        // Plan de la caméra (perpendiculaire à la direction, définit le FOV ~66°)
-        this.planeX = 0.0;
-        this.planeY = 0.66;
-        
-        // Statistiques de classe par défaut (Attaquant)
-        this.maxHealth = 100;
-        this.health = 100;
-        this.speed = 0.1;
-        this.shootCooldown = 400; // ms
-        this.damage = 25;
-        this.staminaRegen = 0.05;
-        
-        // Barre d'endurance de tir
-        this.stamina = 1.0; // De 0.0 à 1.0
-        this.lastShootTime = 0;
-        
-        // États d'animation
-        this.kickState = 0; // 0=idle, 1=kick back, 2=kick point, 3=recovery
-        this.kickTimer = 0;
-        this.bobbing = 0;
-        this.isMoving = false;
-    }
-    
-    initClass(type) {
-        const pClass = PLAYER_CLASSES[type] || PLAYER_CLASSES.striker;
-        this.maxHealth = pClass.maxHealth;
-        this.health = this.maxHealth;
-        this.speed = pClass.speed;
-        this.shootCooldown = pClass.shootCooldown;
-        this.damage = pClass.damage;
-        this.staminaRegen = pClass.staminaRegen;
-        this.stamina = 1.0;
-        this.x = 22.0;
-        this.y = 22.0;
-        this.dirX = -1.0;
-        this.dirY = 0.0;
-        this.planeX = 0.0;
-        this.planeY = 0.66;
-        this.kickState = 0;
-        this.lastShootTime = 0;
-    }
-    
-    rotate(angle) {
-        // Matrice de rotation 2D pour tourner la caméra
-        const oldDirX = this.dirX;
-        this.dirX = this.dirX * Math.cos(angle) - this.dirY * Math.sin(angle);
-        this.dirY = oldDirX * Math.sin(angle) + this.dirY * Math.cos(angle);
-        
-        const oldPlaneX = this.planeX;
-        this.planeX = this.planeX * Math.cos(angle) - this.planeY * Math.sin(angle);
-        this.planeY = oldPlaneX * Math.sin(angle) + this.planeY * Math.cos(angle);
-    }
-    
-    shoot() {
-        const now = Date.now();
-        if (this.health <= 0) return;
-        if (now - this.lastShootTime < this.shootCooldown) return;
-        if (this.stamina < 0.3) return; // Pas assez d'endurance
-        
-        this.lastShootTime = now;
-        this.stamina -= 0.35; // Coût du tir
-        if (this.stamina < 0) this.stamina = 0;
-        
-        // Déclencher animation du pied
-        this.kickState = 1;
-        this.kickTimer = now;
-        
-        // Jouer son de tir
-        audio.playKick();
-        
-        // Lancer la balle après 70ms (moment exact du contact dans l'animation)
-        setTimeout(() => {
-            if (gameState !== 'playing') return;
-            
-            // Créer le projectile ballon
-            projectiles.push({
-                x: this.x + this.dirX * 0.4,
-                y: this.y + this.dirY * 0.4,
-                dx: this.dirX * 0.28,
-                dy: this.dirY * 0.28,
-                active: true,
-                dist: 0,
-                frame: 0,
-                damage: this.damage
-            });
-            
-            // Effet d'impulsion de tir (recouvrement)
-            this.kickState = 2;
-            this.kickTimer = Date.now();
-        }, 80);
-    }
-    
-    takeDamage(amount) {
-        if (this.health <= 0) return;
-        
-        // Si défenseur, réduit les dégâts
-        if (selectedPlayerClass === 'defender') {
-            amount = Math.floor(amount * 0.75);
-        }
-        
-        this.health -= amount;
-        if (this.health < 0) this.health = 0;
-        
-        // Flash rouge de dégâts sur l'écran
-        const flash = document.getElementById('damage-flash');
-        flash.style.backgroundColor = 'rgba(255, 0, 0, 0.45)';
-        setTimeout(() => {
-            flash.style.backgroundColor = 'rgba(255, 0, 0, 0)';
-        }, 120);
-        
-        // Jouer son de blessure
-        audio.playHurt();
-        
-        // Secouer la caméra (effet de tremblement)
-        screenShake = 12;
-        
-        if (this.health <= 0) {
-            triggerGameOver();
-        }
-    }
-    
-    update() {
-        // Régénération de l'endurance
-        if (this.stamina < 1.0) {
-            this.stamina += this.staminaRegen;
-            if (this.stamina > 1.0) this.stamina = 1.0;
-        }
-        
-        // Gérer les frames d'animation du pied
-        if (this.kickState > 0) {
-            const now = Date.now();
-            const elapsed = now - this.kickTimer;
-            
-            if (this.kickState === 1 && elapsed > 80) {
-                // transition gérée par le setTimeout ci-dessus
-            } else if (this.kickState === 2 && elapsed > 100) {
-                this.kickState = 3;
-                this.kickTimer = now;
-            } else if (this.kickState === 3 && elapsed > 100) {
-                this.kickState = 0; // Retour à l'état de repos
-            }
-        }
-        
-        // Bobbing de la caméra pendant la marche
-        if (this.isMoving) {
-            this.bobbing += 0.15;
+        // Numéro de maillot déchiré
+        zCtx.fillStyle = '#ffffff';
+        zCtx.fillRect(15, 13, 2, 5);
+
+        // Bras oscillants selon la frame active
+        zCtx.fillStyle = '#4d7c0f';
+        if (frame === 0) {
+            zCtx.fillRect(6, 10, 4, 8);  
+            zCtx.fillRect(22, 10, 4, 12); 
         } else {
-            this.bobbing = 0;
+            zCtx.fillRect(6, 10, 4, 12);
+            zCtx.fillRect(22, 10, 4, 8);
         }
+
+        // Short et Jambes
+        zCtx.fillStyle = '#171717'; 
+        zCtx.fillRect(11, 22, 10, 3);
+        zCtx.fillStyle = '#4d7c0f';
+        zCtx.fillRect(11, 25, 3, 6);
+        zCtx.fillRect(18, 25, 3, 6);
+
+        zombieFrames.push(canvas);
     }
 }
 
-// Liste des projectiles en jeu
-let projectiles = [];
+// Génère le sprite d'objectif au format pixel-art (Téléphone / Trophée)
+function generateGoalSprite() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const gCtx = canvas.getContext('2d');
+    gCtx.imageSmoothingEnabled = false;
 
-// Liste des entités sprites (Zombies + Objectifs)
-let sprites = [];
+    // Ombre de l'objet
+    gCtx.fillStyle = 'rgba(0,0,0,0.4)';
+    gCtx.beginPath();
+    gCtx.ellipse(16, 28, 6, 2, 0, 0, Math.PI*2);
+    gCtx.fill();
 
-// --- VARIABLES GLOBALES DE JEU ---
-let player = new Player();
-let gameState = 'start'; // 'start', 'playing', 'gameover', 'victory'
-let selectedPlayerClass = 'striker';
-let score = 0;
-let killsCount = 0;
-let gameStartTime = 0;
-let timeElapsed = 0;
-let screenShake = 0;
-let isPointerLocked = false;
-let highScores = [];
+    // Socle / Support doré
+    gCtx.fillStyle = '#d97706';
+    gCtx.fillRect(12, 24, 8, 4);
+    gCtx.fillStyle = '#f59e0b';
+    gCtx.fillRect(13, 25, 6, 2);
 
-const keys = {
-    forward: false,
-    backward: false,
-    strafeLeft: false,
-    strafeRight: false,
-    rotLeft: false,
-    rotRight: false
+    // Corps de l'appareil électronique/objectif principal
+    gCtx.fillStyle = '#1e293b';
+    gCtx.fillRect(11, 6, 10, 18);
+    
+    // Écran rétro-éclairé bleu clignotant
+    gCtx.fillStyle = '#38bdf8';
+    gCtx.fillRect(13, 8, 6, 10);
+    gCtx.fillStyle = '#ffffff';
+    gCtx.fillRect(14, 9, 2, 2); // Reflet écran
+
+    goalSpriteBuffer = canvas;
+}
+
+const WALL_IMAGES = {
+    STADIUM: 'images/mur-map1.png',
+    LOCKER_ROOM: 'images/mur-map2.png',
+    PARKING: 'images/mur-map3.png'
 };
 
-// Canvas principaux
-let gameCanvas, ctx;
-let minimapCanvas, minimapCtx;
-let zBuffer = [];
+// Génère dynamiquement les textures de murs à partir des vraies images
+async function updateWallTexture() {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const tCtx = canvas.getContext('2d');
+    
+    // 1. Désactiver le lissage AVANT de dessiner (et après avoir défini la taille du canvas)
+    tCtx.imageSmoothingEnabled = false;
+    tCtx.mozImageSmoothingEnabled = false; // Pour Firefox
+    tCtx.webkitImageSmoothingEnabled = false; // Pour Safari/Chrome anciens
 
-// Détection de souris
-const mouseSensitivity = 0.0025;
+    // 2. Sélectionner l'image appropriée selon le thème actuel
+    let imgSrc = WALL_IMAGES.PARKING; // Par défaut
 
-// --- INITIALISATION DES CONTROLES ---
-function initControls() {
-    // Mouvements clavier
-    window.addEventListener('keydown', (e) => {
-        if (gameState !== 'playing') return;
+    if (currentTheme === MAP_THEMES.STADIUM) {
+        imgSrc = WALL_IMAGES.STADIUM;
+    } else if (currentTheme === MAP_THEMES.LOCKER_ROOM) {
+        imgSrc = WALL_IMAGES.LOCKER_ROOM;
+    }
+
+    // 3. Créer et charger l'image de manière asynchrone
+    const img = new Image();
+    
+    // [CORRECTION CORS] : On retire crossOrigin si les images sont locales, 
+    // car cela peut provoquer des blocages inutiles sur certains serveurs locaux (ex: Live Server)
+    // img.crossOrigin = "anonymous"; 
+
+    img.src = imgSrc;
+
+    // On attend que l'image soit totalement chargée en mémoire
+    const success = await new Promise((resolve) => {
+        img.onload = () => resolve(true);
+        img.onerror = () => {
+            console.error("Erreur de chargement de la texture : " + imgSrc);
+            resolve(false); 
+        };
+    });
+
+    // 4. Sécurité : Si l'image locale a bugué (mauvais chemin), on dessine un carré de couleur de secours
+    if (!success) {
+        tCtx.fillStyle = (currentTheme === MAP_THEMES.STADIUM) ? '#0f172a' : 
+                         (currentTheme === MAP_THEMES.LOCKER_ROOM) ? '#f1f5f9' : '#4b5563';
+        tCtx.fillRect(0, 0, size, size);
+    } else {
+        // Dessiner la vraie texture sur le canvas (compressé proprement en 64x64)
+        tCtx.drawImage(img, 0, 0, size, size);
+    }
+
+    // 5. On assigne le canvas généré au buffer de ton jeu
+    wallTextureBuffer = canvas;
+}
+
+function generateRandomMap() {
+    GAME_MAP = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(1));
+
+    function carve(cx, cy) {
+        GAME_MAP[cy][cx] = 0;
+        const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
+        for (let [dx, dy] of dirs) {
+            let nx = cx + dx;
+            let ny = cy + dy;
+            if (nx > 0 && nx < MAP_WIDTH - 1 && ny > 0 && ny < MAP_HEIGHT - 1) {
+                if (GAME_MAP[ny][nx] === 1) {
+                    GAME_MAP[cy + dy / 2][cx + dx / 2] = 0;
+                    GAME_MAP[ny][nx] = 0;
+                    carve(nx, ny);
+                }
+            }
+        }
+    }
+    
+    carve(1, 1);
+
+    for (let i = 0; i < 45; i++) {
+        let rx = Math.floor(Math.random() * (MAP_WIDTH - 4)) + 2;
+        let ry = Math.floor(Math.random() * (MAP_HEIGHT - 4)) + 2;
+        GAME_MAP[ry][rx] = 0;
+    }
+
+    GAME_MAP[1][1] = 0;
+    GAME_MAP[1][2] = 0;
+    GAME_MAP[2][1] = 0;
+    
+    let validGoalFound = false;
+    let attempts = 0;
+    
+    while (!validGoalFound && attempts < 120) {
+        let rx = Math.floor(Math.random() * (MAP_WIDTH - 4)) + 2;
+        let ry = Math.floor(Math.random() * (MAP_HEIGHT - 4)) + 2;
         
-        switch (e.code) {
-            case 'KeyW':
-            case 'KeyZ': // Z pour AZERTY
-            case 'ArrowUp':
-                keys.forward = true;
-                player.isMoving = true;
-                break;
-            case 'KeyS':
-            case 'ArrowDown':
-                keys.backward = true;
-                player.isMoving = true;
-                break;
-            case 'KeyA': // A pour pivoter à gauche en AZERTY
-                keys.rotLeft = true;
-                break;
-            case 'KeyQ': // Q pour strafer à gauche en AZERTY
-                keys.strafeLeft = true;
-                player.isMoving = true;
-                break;
-            case 'KeyD':
-                keys.strafeRight = true;
-                player.isMoving = true;
-                break;
-            case 'KeyE': // E pour pivoter à droite
-                keys.rotRight = true;
-                break;
-            case 'ArrowLeft':
-                keys.rotLeft = true;
-                break;
-            case 'ArrowRight':
-                keys.rotRight = true;
-                break;
-            case 'Space':
-                player.shoot();
-                break;
+        if (GAME_MAP[ry][rx] === 0 && Math.hypot(rx - 1.5, ry - 1.5) > 12) {
+            goalX = rx + 0.5;
+            goalY = ry + 0.5;
+            validGoalFound = true;
         }
+        attempts++;
+    }
+    
+    if (!validGoalFound) {
+        goalX = MAP_WIDTH - 2 + 0.5;
+        goalY = MAP_HEIGHT - 2 + 0.5;
+        GAME_MAP[MAP_HEIGHT - 2][MAP_WIDTH - 2] = 0;
+    }
+}
+
+function setupMenuControls() {
+    document.getElementById('btn-play').addEventListener('click', () => {
+        const mapSelect = document.getElementById('map-select');
+        if (mapSelect) {
+            currentTheme = mapSelect.value; // Prise en compte de la map choisie
+            updateWallTexture();
+        }
+        switchScreen('game-screen');
+        startGame();
+        document.getElementById('game-canvas').requestPointerLock();
     });
 
-    window.addEventListener('keyup', (e) => {
-        switch (e.code) {
-            case 'KeyW':
-            case 'KeyZ':
-            case 'ArrowUp':
-                keys.forward = false;
-                break;
-            case 'KeyS':
-            case 'ArrowDown':
-                keys.backward = false;
-                break;
-            case 'KeyA':
-                keys.rotLeft = false;
-                break;
-            case 'KeyQ':
-                keys.strafeLeft = false;
-                break;
-            case 'KeyD':
-                keys.strafeRight = false;
-                break;
-            case 'KeyE':
-                keys.rotRight = false;
-                break;
-            case 'ArrowLeft':
-                keys.rotLeft = false;
-                break;
-            case 'ArrowRight':
-                keys.rotRight = false;
-                break;
-        }
-        // Vérifier s'il reste des touches de mouvement pressées
-        if (!keys.forward && !keys.backward && !keys.strafeLeft && !keys.strafeRight) {
-            player.isMoving = false;
-        }
+    document.getElementById('btn-settings').addEventListener('click', () => {
+        switchScreen('settings-screen');
     });
 
-    // Clic pour shooter
-    const container = document.getElementById('canvas-container');
-    container.addEventListener('mousedown', (e) => {
-        if (gameState === 'playing') {
-            if (document.pointerLockElement === container) {
-                player.shoot();
-            } else {
-                container.requestPointerLock();
+    document.getElementById('btn-settings-back').addEventListener('click', () => {
+        switchScreen('start-screen');
+    });
+
+    document.getElementById('btn-retry').addEventListener('click', () => {
+        switchScreen('game-screen');
+        startGame();
+        document.getElementById('game-canvas').requestPointerLock();
+    });
+
+    document.getElementById('btn-restart').addEventListener('click', () => {
+        switchScreen('start-screen');
+    });
+
+    document.getElementById('btn-mute').addEventListener('click', () => {
+        isMuted = !isMuted;
+        document.getElementById('btn-mute').textContent = isMuted ? "❌" : "🔊";
+    });
+
+    document.getElementById('btn-crt').addEventListener('click', () => {
+        isCrtOn = !isCrtOn;
+        const crtOverlay = document.getElementById('crt-overlay');
+        if (crtOverlay) crtOverlay.className = isCrtOn ? "crt-on" : "";
+    });
+
+    const btnResume = document.getElementById('btn-resume');
+    if (btnResume) {
+        btnResume.addEventListener('click', () => {
+            document.getElementById('game-canvas').requestPointerLock();
+        });
+    }
+}
+
+function switchScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(screenId);
+    if (target) target.classList.add('active');
+}
+
+function setupInputControls() {
+    window.addEventListener('keydown', (e) => { 
+        const key = e.key.toLowerCase();
+        keys[key] = true; 
+        
+        if (e.key === ' ') { 
+            if (!isPaused) shootBall(); 
+            e.preventDefault(); 
+        }
+        
+        // Interaction physique avec l'objectif de la map
+        if (key === KEY_BINDINGS.INTERACT) {
+            if (!isPaused && canInteractWithGoal) {
+                try { document.exitPointerLock(); } catch(err){}
+                switchScreen('victory-screen');
             }
         }
     });
+    
+    window.addEventListener('keyup', (e) => { 
+        keys[e.key.toLowerCase()] = false; 
+    });
+    
+    const canvas = document.getElementById('game-canvas');
+    canvas.addEventListener('click', () => {
+        if (document.pointerLockElement !== canvas) {
+            canvas.requestPointerLock();
+        } else if (!isPaused) {
+            shootBall();
+        }
+    });
 
-    // Mouvement de la souris pour tourner la caméra
     document.addEventListener('pointerlockchange', () => {
-        isPointerLocked = (document.pointerLockElement === container);
+        if (document.pointerLockElement === canvas) {
+            isPaused = false;
+            const pauseMenu = document.getElementById('pause-menu');
+            if (pauseMenu) pauseMenu.style.display = 'none';
+        } else {
+            const gameScreen = document.getElementById('game-screen');
+            if (gameScreen && gameScreen.classList.contains('active')) {
+                isPaused = true;
+                const pauseMenu = document.getElementById('pause-menu');
+                if (pauseMenu) pauseMenu.style.display = 'flex';
+            }
+            keys = {};
+        }
     });
 
     document.addEventListener('mousemove', (e) => {
-        if (isPointerLocked && gameState === 'playing') {
-            const rotSpeed = -e.movementX * mouseSensitivity;
-            player.rotate(rotSpeed);
+        if (document.pointerLockElement === canvas && !isPaused) {
+            const mouseSensitivity = 0.0022;
+            let rotSpeed = e.movementX * mouseSensitivity;
+            
+            let oldDirX = player.dirX;
+            player.dirX = player.dirX * Math.cos(rotSpeed) - player.dirY * Math.sin(rotSpeed);
+            player.dirY = oldDirX * Math.sin(rotSpeed) + player.dirY * Math.cos(rotSpeed);
+            
+            let oldPlaneX = player.planeX;
+            player.planeX = player.planeX * Math.cos(rotSpeed) - player.planeY * Math.sin(rotSpeed);
+            player.planeY = oldPlaneX * Math.sin(rotSpeed) + player.planeY * Math.cos(rotSpeed);
         }
     });
 }
 
-// --- GESTION DES ZOMBIES (IA & SPAWN) ---
 function spawnZombies() {
-    sprites = [];
-    killsCount = 0;
-    
-    // 1. Placer le téléphone / cabine téléphonique en position (1.5, 1.5) tout en haut à gauche
-    sprites.push({
-        x: 1.5,
-        y: 1.5,
-        type: 'phone',
-        active: true,
-        texture: spritesGen.phone
-    });
-    
-    // Spawns coordonnés des zombies (sur des cases de MAP valant 0)
-    const spawnPoints = [
-        { x: 3.5, y: 7.5, type: 'normal' },
-        { x: 5.5, y: 3.5, type: 'runner' },
-        { x: 2.5, y: 15.5, type: 'normal' },
-        { x: 8.5, y: 2.5, type: 'tank' },
-        { x: 12.5, y: 8.5, type: 'normal' },
-        { x: 21.5, y: 3.5, type: 'runner' },
-        { x: 14.5, y: 6.5, type: 'normal' },
-        { x: 15.5, y: 12.5, type: 'normal' },
-        { x: 12.5, y: 16.5, type: 'runner' },
-        { x: 6.5, y: 21.5, type: 'tank' },
-        { x: 3.5, y: 20.5, type: 'normal' },
-        { x: 10.5, y: 22.5, type: 'normal' },
-        { x: 18.5, y: 21.5, type: 'tank' },
-        { x: 21.5, y: 18.5, type: 'runner' },
-        // Quelques zombies proches du but pour corser le final
-        { x: 2.5, y: 3.5, type: 'runner' },
-        { x: 4.5, y: 2.5, type: 'tank' },
-        { x: 6.5, y: 1.5, type: 'normal' }
-    ];
-    
-    spawnPoints.forEach((sp, idx) => {
-        let hp = 30;
-        let speed = 0.025;
-        let damage = 15;
-        
-        if (sp.type === 'runner') {
-            hp = 15;
-            speed = 0.055;
-            damage = 10;
-        } else if (sp.type === 'tank') {
-            hp = 85;
-            speed = 0.015;
-            damage = 30;
+    zombies = [];
+    const count = 15;
+    while (zombies.length < count) {
+        let rx = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+        let ry = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+        if (GAME_MAP[ry][rx] === 0 && Math.hypot(rx - player.x, ry - player.y) > 4) {
+            zombies.push({ 
+                x: rx + 0.5, 
+                y: ry + 0.5,
+                animTimer: Math.random() * 100 
+            });
         }
-        
-        sprites.push({
-            id: idx + 1,
-            x: sp.x,
-            y: sp.y,
-            type: sp.type,
-            active: true,
-            health: hp,
-            maxHealth: hp,
-            speed: speed,
-            damage: damage,
-            lastAttackTime: 0,
-            isHurt: false,
-            hurtTimer: 0,
-            animFrame: 0,
-            animTimer: 0
+    }
+}
+
+function startGame() {
+    generateRandomMap();
+
+    player.x = 1.5; 
+    player.y = 1.5;
+    player.dirX = 1.0; 
+    player.dirY = 0.0;
+    player.planeX = 0.0; 
+    player.planeY = 0.66;
+    player.health = 100; 
+    player.score = 0; 
+    player.kills = 0; 
+    player.stamina = 100;
+    player.lastDamageTime = 0;
+    isPaused = false;
+    keys = {};
+    canInteractWithGoal = false;
+    weaponRecoil = 0;
+    weaponWeaponBob = 0;
+
+    spawnZombies();
+    balls = [];
+    zBuffer = new Array(ctx ? ctx.canvas.width : 640).fill(Infinity);
+
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) pauseMenu.style.display = 'none';
+
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function gameLoop() {
+    if (!isPaused) {
+        updateMovement();
+        updateEntities();
+    }
+    
+    renderRaycaster();
+    renderWeaponWithHands(); // Exécution de l'affichage des deux bras animés
+    renderMinimap();  
+    updateHUD();
+
+    if (player.health <= 0) {
+        document.getElementById('go-score').textContent = player.score;
+        document.getElementById('go-kills').textContent = player.kills;
+        try { document.exitPointerLock(); } catch(e){}
+        switchScreen('gameover-screen');
+        return;
+    }
+
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function updateMovement() {
+    const moveSpeed = 0.07;
+    const buffer = 0.2;
+
+    let newX = player.x;
+    let newY = player.y;
+    let isMoving = false;
+
+    const isForward = keys[KEY_BINDINGS.FORWARD] || keys['z'] || keys['arrowup'];
+    const isBackward = keys[KEY_BINDINGS.BACKWARD] || keys['arrowdown'];
+    const isLeft = keys[KEY_BINDINGS.STRAFE_LEFT] || keys['q'] || keys['arrowleft'];
+    const isRight = keys[KEY_BINDINGS.STRAFE_RIGHT] || keys['arrowright'];
+
+    if (isForward) { newX += player.dirX * moveSpeed; newY += player.dirY * moveSpeed; isMoving = true; }
+    if (isBackward) { newX -= player.dirX * moveSpeed; newY -= player.dirY * moveSpeed; isMoving = true; }
+    if (isLeft) { newX -= player.planeX * moveSpeed; newY -= player.planeY * moveSpeed; isMoving = true; }
+    if (isRight) { newX += player.planeX * moveSpeed; newY += player.planeY * moveSpeed; isMoving = true; }
+
+    if (GAME_MAP[Math.floor(player.y)][Math.floor(newX + (newX > player.x ? buffer : -buffer))] !== 1) player.x = newX;
+    if (GAME_MAP[Math.floor(newY + (newY > player.y ? buffer : -buffer))][Math.floor(player.x)] !== 1) player.y = newY;
+
+    if (isMoving) {
+        weaponWeaponBob += 0.24; // Fréquence d'oscillation
+    } else {
+        weaponWeaponBob *= 0.8; 
+    }
+
+    if (weaponRecoil > 0) weaponRecoil -= 4;
+
+    let distToGoal = Math.hypot(player.x - goalX, player.y - goalY);
+    canInteractWithGoal = (distToGoal < 0.9);
+
+    if (player.stamina < 100) player.stamina += 1.5;
+}
+
+function shootBall() {
+    if (player.stamina >= 25) {
+        player.stamina -= 25;
+        weaponRecoil = 30; // Force du recul visuel appliqué sur l'axe Y des mains
+        balls.push({
+            x: player.x,
+            y: player.y,
+            dirX: player.dirX,
+            dirY: player.dirY,
+            speed: 0.25,
+            life: 50
         });
-    });
-}
-
-function updateZombiesAndProjectiles() {
-    const now = Date.now();
-    
-    // 1. Mettre à jour les projectiles (ballons de foot)
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-        const p = projectiles[i];
-        if (!p.active) continue;
-        
-        // Déplacement
-        const nextX = p.x + p.dx;
-        const nextY = p.y + p.dy;
-        
-        // Collision avec les murs de la MAP
-        const mapX = Math.floor(nextX);
-        const mapY = Math.floor(nextY);
-        
-        if (mapX < 0 || mapX >= MAP_SIZE || mapY < 0 || mapY >= MAP_SIZE || MAP[mapY][mapX] > 0) {
-            p.active = false;
-            projectiles.splice(i, 1);
-            continue;
-        }
-        
-        p.x = nextX;
-        p.y = nextY;
-        p.dist += Math.sqrt(p.dx*p.dx + p.dy*p.dy);
-        
-        // Animation de rotation (changement de frame)
-        if (Math.random() < 0.6) {
-            p.frame = (p.frame + 1) % 4;
-        }
-        
-        // Supprimer si trop loin
-        if (p.dist > 15.0) {
-            p.active = false;
-            projectiles.splice(i, 1);
-            continue;
-        }
-        
-        // Collision projectile / zombies
-        for (let j = 0; j < sprites.length; j++) {
-            const spr = sprites[j];
-            if (spr.type === 'phone' || !spr.active) continue;
-            
-            // Distance 2D
-            const dist = Math.sqrt((p.x - spr.x)*(p.x - spr.x) + (p.y - spr.y)*(p.y - spr.y));
-            if (dist < 0.45) { // Hitbox zombie
-                spr.health -= p.damage;
-                spr.isHurt = true;
-                spr.hurtTimer = now;
-                
-                audio.playHit();
-                
-                // Détruire le ballon
-                p.active = false;
-                projectiles.splice(i, 1);
-                
-                // Mort du zombie
-                if (spr.health <= 0) {
-                    spr.active = false;
-                    killsCount++;
-                    
-                    // Gain de score
-                    let pts = 100;
-                    if (spr.type === 'runner') pts = 200;
-                    else if (spr.type === 'tank') pts = 400;
-                    score += pts;
-                    
-                    audio.playGroan();
-
-                    // Regagner de la vie directement lors du kill (+5 PV)
-                    player.health = Math.min(player.maxHealth, player.health + 5);
-
-                    // Chance de drop une gourde de soin au sol (40% de chance)
-                    if (Math.random() < 0.40) {
-                        sprites.push({
-                            x: spr.x,
-                            y: spr.y,
-                            type: 'health',
-                            active: true,
-                            texture: spritesGen.waterBottle
-                        });
-                    }
-                }
-                break; // Sortir de la boucle zombies pour ce projectile
-            }
-        }
-    }
-    
-    // 2. Mettre à jour les zombies (IA & attaques)
-    for (let i = 0; i < sprites.length; i++) {
-        const spr = sprites[i];
-        if (spr.type === 'phone' || !spr.active) continue;
-        
-        // Réinitialiser effet dégât clignotant rouge après 150ms
-        if (spr.isHurt && now - spr.hurtTimer > 150) {
-            spr.isHurt = false;
-        }
-        
-        // Distance joueur-zombie
-        const dist = Math.sqrt((player.x - spr.x)*(player.x - spr.x) + (player.y - spr.y)*(player.y - spr.y));
-        
-        // Si le joueur est à portée visuelle/auditive
-        if (dist < 13.0) {
-            // Son de râle zombie aléatoire
-            if (Math.random() < 0.003) {
-                audio.playGroan();
-            }
-            
-            // Vecteur direction vers le joueur
-            const dx = player.x - spr.x;
-            const dy = player.y - spr.y;
-            
-            // Normalisation
-            const nextZX = spr.x + (dx / dist) * spr.speed;
-            const nextZY = spr.y + (dy / dist) * spr.speed;
-            
-            // Déplacement avec glissement de mur simple
-            if (MAP[Math.floor(spr.y)][Math.floor(nextZX)] === 0) {
-                spr.x = nextZX;
-            }
-            if (MAP[Math.floor(nextZY)][Math.floor(spr.x)] === 0) {
-                spr.y = nextZY;
-            }
-            
-            // Animation marche
-            if (now - spr.animTimer > 250) {
-                spr.animFrame = (spr.animFrame + 1) % 2;
-                spr.animTimer = now;
-            }
-            
-            // Attaque si très proche (tacle)
-            if (dist < 0.6 && now - spr.lastAttackTime > 1000) {
-                spr.lastAttackTime = now;
-                player.takeDamage(spr.damage);
-            }
-        }
     }
 }
 
-// --- RENDU 3D RAYCASTER ---
-function render3D() {
-    // 1. Nettoyer et dessiner le sol (gazon vert rétro) et le ciel (stade de nuit)
-    const floorGrad = ctx.createLinearGradient(0, gameCanvas.height/2, 0, gameCanvas.height);
-    floorGrad.addColorStop(0, '#102008'); // Vert sombre au loin
-    floorGrad.addColorStop(1, '#2c5918'); // Gazon vert fluo près du joueur
-    ctx.fillStyle = floorGrad;
-    ctx.fillRect(0, gameCanvas.height/2, gameCanvas.width, gameCanvas.height/2);
-    
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, gameCanvas.height/2);
-    skyGrad.addColorStop(0, '#020307'); // Ciel noir spatial
-    skyGrad.addColorStop(0.7, '#0c0f1e'); // Bleu nuit
-    skyGrad.addColorStop(1, '#1b1b3a'); // Ligne d'horizon avec projecteurs flous
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height/2);
-    
-    // Dessiner de faux projecteurs de stade à l'horizon
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.beginPath();
-    ctx.moveTo(100, 0); ctx.lineTo(130, 200); ctx.lineTo(70, 200); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(300, 0); ctx.lineTo(340, 200); ctx.lineTo(260, 200); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(520, 0); ctx.lineTo(550, 200); ctx.lineTo(490, 200); ctx.fill();
+function updateEntities() {
+    for (let i = balls.length - 1; i >= 0; i--) {
+        let b = balls[i];
+        b.x += b.dirX * b.speed;
+        b.y += b.dirY * b.speed;
+        b.life--;
 
-    // Appliquer le tremblement d'écran (screen shake) si présent
-    ctx.save();
-    if (screenShake > 0) {
-        const dx = (Math.random() - 0.5) * screenShake;
-        const dy = (Math.random() - 0.5) * screenShake;
-        ctx.translate(dx, dy);
-        screenShake--;
-    }
+        if (GAME_MAP[Math.floor(b.y)][Math.floor(b.x)] === 1 || b.life <= 0) {
+            balls.splice(i, 1);
+            continue;
+        }
 
-    // 2. RAYCASTING POUR CHAQUE COLONNE VERTICALE DU CANVAS
-    const w = gameCanvas.width;
-    const h = gameCanvas.height;
-    
-    for (let x = 0; x < w; x++) {
-        // Coordonnée X de la caméra de -1 (gauche) à +1 (droite)
-        const cameraX = 2 * x / w - 1;
-        const rayDirX = player.dirX + player.planeX * cameraX;
-        const rayDirY = player.dirY + player.planeY * cameraX;
-        
-        let mapX = Math.floor(player.x);
-        let mapY = Math.floor(player.y);
-        
-        let sideDistX, sideDistY;
-        
-        // Distance entre 2 lignes X ou Y consécutives du rayon
-        const deltaDistX = (rayDirX === 0) ? Infinity : Math.abs(1 / rayDirX);
-        const deltaDistY = (rayDirY === 0) ? Infinity : Math.abs(1 / rayDirY);
-        let perpWallDist;
-        
-        let stepX, stepY;
-        let hit = 0;
-        let side; // 0 pour mur Est/Ouest, 1 pour Nord/Sud
-        
-        // Direction du pas
-        if (rayDirX < 0) {
-            stepX = -1;
-            sideDistX = (player.x - mapX) * deltaDistX;
-        } else {
-            stepX = 1;
-            sideDistX = (mapX + 1.0 - player.x) * deltaDistX;
-        }
-        if (rayDirY < 0) {
-            stepY = -1;
-            sideDistY = (player.y - mapY) * deltaDistY;
-        } else {
-            stepY = 1;
-            sideDistY = (mapY + 1.0 - player.y) * deltaDistY;
-        }
-        
-        // Algorithme DDA (Digital Differential Analysis)
-        while (hit === 0) {
-            if (sideDistX < sideDistY) {
-                sideDistX += deltaDistX;
-                mapX += stepX;
-                side = 0;
-            } else {
-                sideDistY += deltaDistY;
-                mapY += stepY;
-                side = 1;
-            }
-            // Limites de map
-            if (mapX < 0 || mapX >= MAP_SIZE || mapY < 0 || mapY >= MAP_SIZE) {
-                hit = 1; // Mur virtuel par défaut
+        for (let j = zombies.length - 1; j >= 0; j--) {
+            let z = zombies[j];
+            let dist = Math.hypot(b.x - z.x, b.y - z.y);
+            if (dist < 0.5) {
+                zombies.splice(j, 1);
+                balls.splice(i, 1);
+                player.score += 150;
+                player.kills += 1;
                 break;
             }
-            if (MAP[mapY][mapX] > 0) {
-                hit = MAP[mapY][mapX];
+        }
+    }
+
+    zombies.forEach(z => {
+        z.animTimer += 1.2; 
+        
+        let angle = Math.atan2(player.y - z.y, player.x - z.x);
+        let nextX = z.x + Math.cos(angle) * 0.024;
+        let nextY = z.y + Math.sin(angle) * 0.024;
+
+        if (GAME_MAP[Math.floor(z.y)][Math.floor(nextX)] !== 1) z.x = nextX;
+        if (GAME_MAP[Math.floor(nextY)][Math.floor(z.x)] !== 1) z.y = nextY;
+
+        if (Math.hypot(player.x - z.x, player.y - z.y) < 0.45) {
+            const now = Date.now();
+            if (!player.lastDamageTime || now - player.lastDamageTime > 5000) {
+                player.health -= 20; // 20 points de dégâts
+                player.lastDamageTime = now;
+                triggerDamageFlash();
             }
         }
-        
-        // Calculer la distance au mur projetée sur la direction de la caméra
-        if (side === 0) perpWallDist = (mapX - player.x + (1 - stepX) / 2) / rayDirX;
-        else            perpWallDist = (mapY - player.y + (1 - stepY) / 2) / rayDirY;
-        
-        // Prévenir division par zéro
-        if (perpWallDist <= 0) perpWallDist = 0.01;
-        
-        // Enregistrer la distance dans le Z-Buffer pour les sprites
+    });
+}
+
+function triggerDamageFlash() {
+    const flash = document.getElementById('damage-flash');
+    if (flash) {
+        flash.style.opacity = '0.4';
+        setTimeout(() => flash.style.opacity = '0', 50);
+    }
+}
+
+// RENDU RETRO DES MAINS DE TENUE DU LANCEUR (INSPIRÉ DE DOOM)
+function renderWeaponWithHands() {
+    if (!ctx) return;
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.save();
+    
+    // Formules d'oscillation et de recul des membres
+    let bobX = Math.sin(weaponWeaponBob) * 10;
+    let bobY = Math.abs(Math.cos(weaponWeaponBob)) * 6 + weaponRecoil;
+
+    let cx = w / 2 + bobX;
+    let cy = h + bobY;
+
+    // 1. RENDU DES BRAS ET MAINS DU JOUEUR (Pixel-art géométrique)
+    ctx.fillStyle = '#fbcfe8'; // Peau claire rétro
+    ctx.strokeStyle = '#020617';
+    ctx.lineWidth = 3;
+
+    // Main Droite (Maintien de la crosse inférieure)
+    ctx.fillRect(cx + 16, cy - 44, 20, 20);
+    ctx.strokeRect(cx + 16, cy - 44, 20, 20);
+    
+    // Main Gauche (Soutien du tube avant)
+    ctx.fillRect(cx - 36, cy - 54, 18, 18);
+    ctx.strokeRect(cx - 36, cy - 54, 18, 18);
+
+    // Manches bleues du maillot de sport de l'équipe locale
+    ctx.fillStyle = '#2563eb'; 
+    ctx.fillRect(cx + 24, cy - 24, 26, 30);
+    ctx.fillRect(cx - 48, cy - 36, 22, 40);
+
+    // 2. RENDU DU CANON CENTRAL DU LANCE-BALLONS
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy);
+    ctx.lineTo(cx - 10, cy - 95);
+    ctx.lineTo(cx + 10, cy - 95);
+    ctx.lineTo(cx + 16, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Intérieur obscur de la bouche du canon
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 95, 10, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Jauge lumineuse de recharge (Stamina)
+    ctx.fillStyle = player.stamina >= 25 ? '#22c55e' : '#ef4444';
+    ctx.fillRect(cx - 2, cy - 68, 4, 28);
+
+    ctx.restore();
+}
+
+function renderRaycaster() {
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false; 
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    // Ciel
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h / 2);
+    
+    // Détermination du sol selon la carte
+    let groundColor = '#15803d'; 
+    if (currentTheme === MAP_THEMES.LOCKER_ROOM) groundColor = '#334155';
+    if (currentTheme === MAP_THEMES.PARKING) groundColor = '#1c1917';
+    
+    ctx.fillStyle = groundColor; 
+    ctx.fillRect(0, h / 2, w, h / 2);
+    
+    // Effet bandes blanches de pelouse sur la map Stade
+    if (currentTheme === MAP_THEMES.STADIUM) {
+        ctx.fillStyle = '#16a34a';
+        for (let row = h / 2; row < h; row += 20) {
+            if ((row / 20) % 2 === 0) ctx.fillRect(0, row, w, 8);
+        }
+    }
+
+    // Algorithme DDA Raycasting pour les structures de murs
+    for (let x = 0; x < w; x++) {
+        let cameraX = 2 * x / w - 1;
+        let rayDirX = player.dirX + player.planeX * cameraX;
+        let rayDirY = player.dirY + player.planeY * cameraX;
+
+        let mapX = Math.floor(player.x);
+        let mapY = Math.floor(player.y);
+
+        let sideDistX, sideDistY;
+        let deltaDistX = (rayDirX === 0) ? Infinity : Math.abs(1 / rayDirX);
+        let deltaDistY = (rayDirY === 0) ? Infinity : Math.abs(1 / rayDirY);
+        let perpWallDist;
+
+        let stepX, stepY;
+        let hit = 0;
+        let side;
+
+        if (rayDirX < 0) { stepX = -1; sideDistX = (player.x - mapX) * deltaDistX; } 
+        else { stepX = 1; sideDistX = (mapX + 1.0 - player.x) * deltaDistX; }
+        if (rayDirY < 0) { stepY = -1; sideDistY = (player.y - mapY) * deltaDistY; } 
+        else { stepY = 1; sideDistY = (mapY + 1.0 - player.y) * deltaDistY; }
+
+        while (hit === 0) {
+            if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; } 
+            else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
+            if (GAME_MAP[mapY][mapX] === 1) hit = 1;
+        }
+
+        if (side === 0) perpWallDist = (sideDistX - deltaDistX);
+        else perpWallDist = (sideDistY - deltaDistY);
+
         zBuffer[x] = perpWallDist;
-        
-        // Calculer la hauteur de la ligne à dessiner à l'écran
-        const lineHeight = Math.floor(h / perpWallDist);
-        
-        // Calculer les bornes de dessin verticales
+
+        let lineHeight = Math.floor(h / (perpWallDist || 0.01));
         let drawStart = Math.floor(-lineHeight / 2 + h / 2);
-        if (drawStart < 0) drawStart = 0;
         let drawEnd = Math.floor(lineHeight / 2 + h / 2);
-        if (drawEnd >= h) drawEnd = h - 1;
-        
-        // Texturage du mur
-        const texNum = hit - 1;
-        const tex = textures[texNum] || textures[0];
-        
-        // Déterminer la coordonnée X exacte de collision sur le mur
-        let wallX;
-        if (side === 0) wallX = player.y + perpWallDist * rayDirY;
-        else            wallX = player.x + perpWallDist * rayDirX;
+
+        let wallX = (side === 0) ? player.y + perpWallDist * rayDirY : player.x + perpWallDist * rayDirX;
         wallX -= Math.floor(wallX);
-        
-        // Coordonnée X de la texture (adaptée dynamiquement à sa largeur)
-        const texWidth = tex.width;
-        let texX = Math.floor(wallX * texWidth);
-        if (side === 0 && rayDirX > 0) texX = texWidth - texX - 1;
-        if (side === 1 && rayDirY < 0) texX = texWidth - texX - 1;
-        texX = Math.max(0, Math.min(texWidth - 1, texX));
-        
-        // Dessiner le bandeau vertical de 1px de large
-        ctx.drawImage(
-            tex,
-            texX, 0, 1, tex.height, // Source
-            x, drawStart, 1, (drawEnd - drawStart) // Cible
-        );
-        
-        // Ombrage rétro : Murs Nord/Sud légèrement plus sombres et assombrissement avec la distance
-        let shade = 0;
-        if (side === 1) shade += 0.25; // assombrir côté NS
-        
-        // Effet de brouillard/distance linéaire
-        const distFade = Math.min(0.85, perpWallDist * 0.065);
-        const finalShade = Math.max(shade, distFade);
-        
-        if (finalShade > 0) {
-            ctx.fillStyle = `rgba(3, 4, 8, ${finalShade})`;
-            ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
+        let texX = Math.floor(wallX * 64);
+        if ((side === 0 && rayDirX > 0) || (side === 1 && rayDirY < 0)) texX = 64 - texX - 1;
+
+        texX = Math.max(0, Math.min(63, texX));
+
+        if (wallTextureBuffer) {
+            ctx.drawImage(wallTextureBuffer, texX, 0, 1, 64, x, drawStart, 1, (drawEnd - drawStart));
+            ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.85, (perpWallDist * 0.06) + (side === 1 ? 0.2 : 0))})`;
+            ctx.fillRect(x, drawStart, 1, (drawEnd - drawStart));
         }
     }
-    
-    // 3. RENDU DES SPRITES (Zombies, Projectiles, Téléphone)
-    // Combiner les sprites des zombies et les ballons de foot lancés
-    let activeSprites = [];
-    
-    // Téléphone et zombies
-    sprites.forEach(s => {
-        if (s.active) {
-            let tex = s.texture;
-            if (s.type !== 'phone') {
-                // Déterminer la texture animée
-                const isHurt = s.isHurt;
-                const frame = s.animFrame;
-                if (s.type === 'normal') {
-                    tex = isHurt ? spritesGen.zombieNormalHurt : (frame === 0 ? spritesGen.zombieNormalWalk1 : spritesGen.zombieNormalWalk2);
-                } else if (s.type === 'runner') {
-                    tex = isHurt ? spritesGen.zombieRunnerHurt : (frame === 0 ? spritesGen.zombieRunnerWalk1 : spritesGen.zombieRunnerWalk2);
-                } else if (s.type === 'tank') {
-                    tex = isHurt ? spritesGen.zombieTankHurt : (frame === 0 ? spritesGen.zombieTankWalk1 : spritesGen.zombieTankWalk2);
-                }
-            }
-            activeSprites.push({
-                x: s.x,
-                y: s.y,
-                texture: tex,
-                type: s.type
-            });
-        }
-    });
-    
-    // Projectiles
-    projectiles.forEach(p => {
-        if (p.active) {
-            // Texture du ballon pivoté
-            let tex = spritesGen.football1;
-            if (p.frame === 1) tex = spritesGen.football2;
-            else if (p.frame === 2) tex = spritesGen.football3;
-            else if (p.frame === 3) tex = spritesGen.football4;
-            
-            activeSprites.push({
-                x: p.x,
-                y: p.y,
-                texture: tex,
-                type: 'ball'
-            });
-        }
-    });
-    
-    // Trier les sprites du plus éloigné au plus proche pour un rendu correct en profondeur (Painter's Algorithm)
-    const sortedSprites = activeSprites.map((s, index) => {
-        const dist = ((player.x - s.x)*(player.x - s.x) + (player.y - s.y)*(player.y - s.y));
-        return { sprite: s, dist: dist };
-    });
-    
-    sortedSprites.sort((a, b) => b.dist - a.dist);
-    
-    // Projeter et dessiner chaque sprite trié
-    sortedSprites.forEach(item => {
-        const s = item.sprite;
-        
-        // Coordonnées du sprite par rapport à la caméra du joueur
-        const spriteX = s.x - player.x;
-        const spriteY = s.y - player.y;
-        
-        // Matrice de transformation caméra inverse
-        const invDet = 1.0 / (player.planeX * player.dirY - player.dirX * player.planeY);
-        
-        const transformX = invDet * (player.dirY * spriteX - player.dirX * spriteY);
-        const transformY = invDet * (-player.planeY * spriteX + player.planeX * spriteY); // Profondeur (distance Z)
-        
-        // Si le sprite est derrière l'écran, on ne dessine pas
-        if (transformY <= 0.1) return;
-        
-        // Position X du sprite sur l'écran
-        const spriteScreenX = Math.floor((w / 2) * (1 + transformX / transformY));
-        
-        // Hauteur et largeur du sprite à l'écran (inversement proportionnel à la distance)
-        let spriteHeight = Math.abs(Math.floor(h / transformY));
-        
-        // Facteurs d'échelle spécifiques pour les types de sprites
-        let scale = 1.0;
-        let yOffset = 0; // Ajustement sur le plan vertical (au sol)
-        
-        if (s.type === 'ball') {
-            scale = 0.35; // Le ballon est plus petit
-            yOffset = Math.floor(h * 0.15 / transformY); // Fait voler légèrement le ballon
-        } else if (s.type === 'phone') {
-            // La cabine téléphonique est plus grande et flotte/oscille légèrement (effet arcade)
-            scale = 1.15;
-            yOffset = Math.floor((Math.sin(Date.now() * 0.005) * 5) / transformY);
-        }
-        
-        spriteHeight = Math.floor(spriteHeight * scale);
-        let spriteWidth = spriteHeight; // Sprites carrés par défaut
-        
-        let drawStartY = Math.floor(-spriteHeight / 2 + h / 2 - yOffset);
-        if (drawStartY < 0) drawStartY = 0;
-        let drawEndY = Math.floor(spriteHeight / 2 + h / 2 - yOffset);
-        if (drawEndY >= h) drawEndY = h - 1;
-        
-        let drawStartX = Math.floor(-spriteWidth / 2 + spriteScreenX);
-        if (drawStartX < 0) drawStartX = 0;
-        let drawEndX = Math.floor(spriteWidth / 2 + spriteScreenX);
-        if (drawEndX >= w) drawEndX = w - 1;
-        
-        // Dessiner le sprite colonne par colonne en vérifiant le Z-Buffer
-        for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
-            const texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * s.texture.width / spriteWidth) / 256;
-            const intTexX = Math.floor(texX);
-            
-            if (intTexX >= 0 && intTexX < s.texture.width) {
-                // Z-buffer check (Le sprite est-il devant le mur et en face ?)
-                if (transformY < zBuffer[stripe]) {
-                    ctx.drawImage(
-                        s.texture,
-                        intTexX, 0, 1, s.texture.height, // Source 1px
-                        stripe, drawStartY, 1, (drawEndY - drawStartY) // Cible
-                    );
-                    
-                    // Ombrage de distance pour le sprite (comme pour les murs)
-                    const distFade = Math.min(0.85, transformY * 0.065);
-                    if (distFade > 0) {
-                        ctx.fillStyle = `rgba(3, 4, 8, ${distFade})`;
-                        ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
-                    }
-                }
-            }
-        }
+
+    // Gestion du tri de profondeur des Sprites 2.5D (Billboards)
+    let sprites = [];
+    zombies.forEach(z => sprites.push({ x: z.x, y: z.y, type: 'zombie', animTimer: z.animTimer }));
+    sprites.push({ x: goalX, y: goalY, type: 'goal' });
+    balls.forEach(b => sprites.push({ x: b.x, y: b.y, type: 'ball' }));
+
+    sprites.sort((a, b) => {
+        let distA = Math.hypot(player.x - a.x, player.y - a.y);
+        let distB = Math.hypot(player.x - b.x, player.y - b.y);
+        return distB - distA;
     });
 
-    // 4. RENDU DE L'ARME (Pied de footballeur)
-    // Légère oscillation du pied avec la marche
-    let bobX = 0;
-    let bobY = 0;
-    if (player.isMoving) {
-        bobX = Math.sin(player.bobbing) * 8;
-        bobY = Math.cos(player.bobbing * 2) * 8;
+    sprites.forEach(sprite => {
+        if (sprite.type === 'zombie') drawAnimatedZombie(sprite);
+        if (sprite.type === 'goal') drawGoalSprite(sprite);
+        if (sprite.type === 'ball') drawBallSprite(sprite, 5);
+    });
+
+    // Message contextuel d'objectif si le joueur est dessus
+    if (canInteractWithGoal) {
+        ctx.fillStyle = "white";
+        ctx.font = "bold 16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`Appuyez sur [${KEY_BINDINGS.INTERACT.toUpperCase()}] pour sécuriser l'objectif !`, w / 2, h - 145);
     }
-    
-    let weaponTex = spritesGen.playerFootIdle;
-    if (player.kickState === 1) weaponTex = spritesGen.playerFootKick1;
-    else if (player.kickState === 2) weaponTex = spritesGen.playerFootKick2;
-    else if (player.kickState === 3) weaponTex = spritesGen.playerFootKick3;
-    
-    // Dessiner le pied sur le canvas principal
-    // Centré en bas de l'écran par défaut
-    const weaponW = 200;
-    const weaponH = 200;
-    const weaponX = Math.floor(w / 2 - weaponW / 2 + 10 + bobX);
-    const weaponY = Math.floor(h - weaponH + 20 + bobY);
-    
-    ctx.drawImage(weaponTex, weaponX, weaponY, weaponW, weaponH);
-
-    ctx.restore(); // Restaurer après screen shake
 }
 
-// --- RADAR / MINICARTE ---
+function drawAnimatedZombie(obj) {
+    let spriteX = obj.x - player.x;
+    let spriteY = obj.y - player.y;
+
+    let invDet = 1.0 / (player.planeX * player.dirY - player.dirX * player.planeY);
+    let transformX = invDet * (player.dirY * spriteX - player.dirX * spriteY);
+    let transformY = invDet * (-player.planeY * spriteX + player.planeX * spriteY);
+
+    if (transformY > 0.2) {
+        let screenX = Math.floor((ctx.canvas.width / 2) * (1 + transformX / transformY));
+        let spriteHeight = Math.abs(Math.floor(ctx.canvas.height / transformY)); 
+        let spriteWidth = spriteHeight; 
+
+        let drawStartY = -spriteHeight / 2 + ctx.canvas.height / 2;
+        let drawStartX = screenX - spriteWidth / 2;
+
+        let frameIndex = Math.floor(obj.animTimer / 12) % 2;
+        let currentSprite = zombieFrames[frameIndex];
+
+        for (let stripe = Math.floor(drawStartX); stripe < drawStartX + spriteWidth; stripe++) {
+            if (stripe >= 0 && stripe < ctx.canvas.width && transformY < zBuffer[stripe]) {
+                let texX = Math.floor((stripe - drawStartX) * 32 / spriteWidth);
+                if(texX >= 0 && texX < 32 && currentSprite) {
+                    ctx.drawImage(currentSprite, texX, 0, 1, 32, stripe, drawStartY, 1, spriteHeight);
+                }
+            }
+        }
+    }
+}
+
+function drawGoalSprite(obj) {
+    let spriteX = obj.x - player.x;
+    let spriteY = obj.y - player.y;
+
+    let invDet = 1.0 / (player.planeX * player.dirY - player.dirX * player.planeY);
+    let transformX = invDet * (player.dirY * spriteX - player.dirX * spriteY);
+    let transformY = invDet * (-player.planeY * spriteX + player.planeX * spriteY);
+
+    if (transformY > 0.2) {
+        let screenX = Math.floor((ctx.canvas.width / 2) * (1 + transformX / transformY));
+        let spriteHeight = Math.abs(Math.floor(ctx.canvas.height / transformY)) * 0.7; 
+        let spriteWidth = spriteHeight; 
+
+        let drawStartY = -spriteHeight / 2 + ctx.canvas.height / 2 + (spriteHeight * 0.2);
+        let drawStartX = screenX - spriteWidth / 2;
+
+        for (let stripe = Math.floor(drawStartX); stripe < drawStartX + spriteWidth; stripe++) {
+            if (stripe >= 0 && stripe < ctx.canvas.width && transformY < zBuffer[stripe]) {
+                let texX = Math.floor((stripe - drawStartX) * 32 / spriteWidth);
+                if(texX >= 0 && texX < 32 && goalSpriteBuffer) {
+                    ctx.drawImage(goalSpriteBuffer, texX, 0, 1, 32, stripe, drawStartY, 1, spriteHeight);
+                }
+            }
+        }
+    }
+}
+
+function drawBallSprite(obj, sizeDivider) {
+    let spriteX = obj.x - player.x;
+    let spriteY = obj.y - player.y;
+
+    let invDet = 1.0 / (player.planeX * player.dirY - player.dirX * player.planeY);
+    let transformX = invDet * (player.dirY * spriteX - player.dirX * spriteY);
+    let transformY = invDet * (-player.planeY * spriteX + player.planeX * spriteY);
+
+    if (transformY > 0.2) {
+        let screenX = Math.floor((ctx.canvas.width / 2) * (1 + transformX / transformY));
+        let spriteSize = Math.abs(Math.floor(ctx.canvas.height / transformY)) / sizeDivider;
+        
+        if (screenX >= 0 && screenX < ctx.canvas.width && transformY < zBuffer[screenX]) {
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(screenX, ctx.canvas.height / 2 + 15, Math.max(4, spriteSize), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+}
+
 function renderMinimap() {
-    minimapCtx.fillStyle = '#05060b';
-    minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    if (!ctx) return;
+    const w = ctx.canvas.width;
     
-    const tileSize = minimapCanvas.width / MAP_SIZE;
+    const size = 120; 
+    const pad = 16;   
+    const startX = w - size - pad;
+    const startY = pad;
     
-    // 1. Dessiner les murs connus
-    for (let y = 0; y < MAP_SIZE; y++) {
-        for (let x = 0; x < MAP_SIZE; x++) {
-            if (MAP[y][x] > 0) {
-                // Mur
-                minimapCtx.fillStyle = '#1b233a';
-                minimapCtx.fillRect(x * tileSize, y * tileSize, tileSize - 0.5, tileSize - 0.5);
+    const cell = size / MAP_WIDTH;
+
+    ctx.save();
+    
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2;
+    ctx.fillRect(startX, startY, size, size);
+    ctx.strokeRect(startX, startY, size, size);
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+        for (let x = 0; x < MAP_WIDTH; x++) {
+            if (GAME_MAP[y][x] === 1) {
+                ctx.fillStyle = currentTheme === MAP_THEMES.STADIUM ? '#166534' : '#334155';
+                ctx.fillRect(startX + (x * cell), startY + (y * cell), cell + 0.5, cell + 0.5);
             }
         }
     }
-    
-    // 2. Dessiner le téléphone / cabine téléphonique en jaune clignotant
-    const phone = sprites.find(s => s.type === 'phone');
-    if (phone && phone.active) {
-        minimapCtx.fillStyle = (Math.floor(Date.now() / 250) % 2 === 0) ? '#ffea00' : '#887c00';
-        minimapCtx.beginPath();
-        minimapCtx.arc(phone.x * tileSize, phone.y * tileSize, 3.5, 0, Math.PI*2);
-        minimapCtx.fill();
-    }
-    
-    // 3. Dessiner les zombies actifs en rouge
-    sprites.forEach(s => {
-        if (s.active && s.type !== 'phone') {
-            // Distance au joueur
-            const dist = Math.sqrt((player.x - s.x)*(player.x - s.x) + (player.y - s.y)*(player.y - s.y));
-            // Ne s'affiche sur le radar que s'il est proche (effet détection radar)
-            if (dist < 10) {
-                minimapCtx.fillStyle = '#ff3131';
-                minimapCtx.fillRect(s.x * tileSize - 1.5, s.y * tileSize - 1.5, 3, 3);
-            }
-        }
+
+    // Emplacement de l'objectif physique (Point doré clignotant sur la minimap)
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(startX + (goalX * cell) - 1.5, startY + (goalY * cell) - 1.5, 3, 3);
+
+    ctx.fillStyle = '#ef4444';
+    zombies.forEach(z => {
+        ctx.beginPath();
+        ctx.arc(startX + (z.x * cell), startY + (z.y * cell), 1.5, 0, Math.PI * 2);
+        ctx.fill();
     });
-    
-    // 4. Dessiner le joueur en cyan avec cône de vision
-    minimapCtx.fillStyle = '#00f3ff';
-    minimapCtx.beginPath();
-    minimapCtx.arc(player.x * tileSize, player.y * tileSize, 3, 0, Math.PI*2);
-    minimapCtx.fill();
-    
-    // Cône directionnel
-    minimapCtx.strokeStyle = 'rgba(0, 243, 255, 0.4)';
-    minimapCtx.lineWidth = 1;
-    minimapCtx.beginPath();
-    minimapCtx.moveTo(player.x * tileSize, player.y * tileSize);
-    minimapCtx.lineTo((player.x + player.dirX * 2) * tileSize, (player.y + player.dirY * 2) * tileSize);
-    minimapCtx.stroke();
-}
 
-// --- LOGIQUE METIER DU JEU ---
-
-function handlePlayerMovement() {
-    if (player.health <= 0) return;
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.arc(startX + (player.x * cell), startY + (player.y * cell), 2.5, 0, Math.PI * 2);
+    ctx.fill();
     
-    let dx = 0;
-    let dy = 0;
-    
-    if (keys.forward) {
-        dx += player.dirX * player.speed;
-        dy += player.dirY * player.speed;
-    }
-    if (keys.backward) {
-        dx -= player.dirX * player.speed;
-        dy -= player.dirY * player.speed;
-    }
-    if (keys.strafeLeft) {
-        // Décalage latéral orthogonal
-        dx -= player.planeX * player.speed;
-        dy -= player.planeY * player.speed;
-    }
-    if (keys.strafeRight) {
-        dx += player.planeX * player.speed;
-        dy += player.planeY * player.speed;
-    }
-    
-    // Pivoter via touches clavier A / E ou Flèches gauche/droite
-    const rotSpeed = 0.045;
-    if (keys.rotLeft) {
-        player.rotate(rotSpeed);
-    }
-    if (keys.rotRight) {
-        player.rotate(-rotSpeed);
-    }
-    
-    // Collision avec glissement : vérifier X et Y séparément
-    const newX = player.x + dx;
-    const newY = player.y + dy;
-    
-    if (MAP[Math.floor(player.y)][Math.floor(newX)] === 0) {
-        player.x = newX;
-    }
-    if (MAP[Math.floor(newY)][Math.floor(player.x)] === 0) {
-        player.y = newY;
-    }
-    
-    // Vérifier distance à la cabine téléphonique (Objectif)
-    const phone = sprites.find(s => s.type === 'phone');
-    if (phone) {
-        const distToPhone = Math.sqrt((player.x - phone.x)*(player.x - phone.x) + (player.y - phone.y)*(player.y - phone.y));
-        
-        // Mettre à jour l'indicateur de distance dans le HUD
-        const distVal = document.getElementById('dist-val');
-        distVal.textContent = Math.max(0, Math.floor(distToPhone * 3)); // Facteur d'échelle mètres
-        
-        // Si le joueur touche la cabine -> Victoire !
-        if (distToPhone < 1.0) {
-            triggerVictory();
-        }
-    }
-
-    // Vérifier collision avec les gourdes de soin (items au sol)
-    for (let i = 0; i < sprites.length; i++) {
-        const spr = sprites[i];
-        if (spr.type === 'health' && spr.active) {
-            const dist = Math.sqrt((player.x - spr.x)*(player.x - spr.x) + (player.y - spr.y)*(player.y - spr.y));
-            if (dist < 0.75) {
-                // Ramasser la gourde
-                spr.active = false;
-                
-                // Soigner le joueur (+20 PV)
-                player.health = Math.min(player.maxHealth, player.health + 20);
-                
-                // Effet sonore de soin
-                audio.playHeal();
-                
-                // Gain de score
-                score += 150;
-                
-                // Flash vert de soin à l'écran
-                const flash = document.getElementById('damage-flash');
-                flash.style.backgroundColor = 'rgba(57, 255, 20, 0.35)'; // Vert fluo arcade
-                setTimeout(() => {
-                    flash.style.backgroundColor = 'rgba(0, 0, 0, 0)';
-                }, 120);
-            }
-        }
-    }
-}
-
-// --- BOUTON DE CHANGEMENT D'ECRANS & INTERFACE ---
-
-function selectPlayer(playerType) {
-    selectedPlayerClass = playerType;
-    
-    // Mettre à jour les styles des cartes
-    document.querySelectorAll('.player-card').forEach(card => {
-        card.classList.remove('selected');
-        if (card.dataset.player === playerType) {
-            card.classList.add('selected');
-        }
-    });
+    ctx.restore();
 }
 
 function updateHUD() {
-    // Score
-    const scoreVal = String(score).padStart(6, '0');
-    document.getElementById('hud-score').textContent = scoreVal;
+    const scoreEl = document.getElementById('hud-score');
+    const healthEl = document.getElementById('hud-health-fill');
+    const distEl = document.getElementById('dist-val');
     
-    // Barre de Santé
-    const hpPercent = Math.max(0, (player.health / player.maxHealth) * 100);
-    document.getElementById('hud-health-fill').style.width = `${hpPercent}%`;
+    if(scoreEl) scoreEl.textContent = String(player.score).padStart(6, '0');
+    if(healthEl) healthEl.style.width = `${Math.max(0, player.health)}%`;
     
-    // Alerte visuelle de santé basse
-    if (hpPercent < 30) {
-        document.getElementById('hud-health-fill').style.backgroundColor = 'var(--neon-red)';
-    } else {
-        document.getElementById('hud-health-fill').style.backgroundColor = '';
-    }
-    
-    // Barre d'endurance de tir
-    const staminaPercent = player.stamina * 100;
-    document.getElementById('hud-stamina-fill').style.width = `${staminaPercent}%`;
-    
-    // Couleur d'endurance
-    if (staminaPercent < 30) {
-        document.getElementById('hud-stamina-fill').style.backgroundColor = '#b0bec5';
-    } else {
-        document.getElementById('hud-stamina-fill').style.backgroundColor = '';
-    }
+    let dist = Math.hypot(player.x - goalX, player.y - goalY);
+    if(distEl) distEl.textContent = Math.round(dist * 10);
 }
-
-function loadHighScores() {
-    try {
-        const data = localStorage.getItem('zombie_stadium_scores');
-        if (data) {
-            highScores = JSON.parse(data);
-        } else {
-            highScores = [
-                { name: "CR7", score: 8000 },
-                { name: "LIO", score: 6500 },
-                { name: "ZIZ", score: 4500 },
-                { name: "PSG", score: 2500 },
-                { name: "OM_", score: 1000 }
-            ];
-            saveHighScores();
-        }
-    } catch (e) {
-        // Fallback en mémoire si localStorage est indisponible (ex: file:// restrictif)
-        highScores = [
-            { name: "CR7", score: 8000 },
-            { name: "LIO", score: 6500 },
-            { name: "ZIZ", score: 4500 },
-            { name: "PSG", score: 2500 },
-            { name: "OM_", score: 1000 }
-        ];
-    }
-}
-
-function saveHighScores() {
-    try {
-        localStorage.setItem('zombie_stadium_scores', JSON.stringify(highScores));
-    } catch (e) {
-        // Ignorer si localStorage est bloqué
-    }
-}
-
-function updateHighScoresTable() {
-    const list = document.getElementById('high-scores-list');
-    list.innerHTML = '';
-    
-    // Prendre les 5 meilleurs
-    const sorted = [...highScores].sort((a,b) => b.score - a.score).slice(0, 5);
-    sorted.forEach(entry => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${entry.name}</span> <span>${entry.score} pts</span>`;
-        list.appendChild(li);
-    });
-}
-
-function checkAndAddHighScore() {
-    // Demander le pseudo dans une boîte rétro arcade
-    let name = prompt("NOUVEAU HIGH SCORE ! Entrez vos initiales (3 lettres) :", "AAA");
-    if (!name) name = "AAA";
-    name = name.toUpperCase().slice(0, 3);
-    
-    highScores.push({ name: name, score: score });
-    highScores.sort((a,b) => b.score - a.score);
-    highScores = highScores.slice(0, 5); // Conserver uniquement le top 5
-    
-    saveHighScores();
-    updateHighScoresTable();
-}
-
-// Transitions d'écrans
-function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(scr => {
-        scr.classList.remove('active');
-    });
-    document.getElementById(screenId).classList.add('active');
-}
-
-function startNewGame() {
-    audio.init();
-    audio.startMusic();
-    
-    player.initClass(selectedPlayerClass);
-    score = 0;
-    killsCount = 0;
-    projectiles = [];
-    
-    // Réinitialiser les touches enfoncées
-    Object.keys(keys).forEach(k => keys[k] = false);
-    
-    spawnZombies();
-    
-    gameState = 'playing';
-    gameStartTime = Date.now();
-    
-    showScreen('game-screen');
-    
-    // Demander Pointer Lock directement
-    document.getElementById('canvas-container').requestPointerLock();
-}
-
-function triggerGameOver() {
-    gameState = 'gameover';
-    audio.stopMusic();
-    audio.playLose();
-    
-    // Libérer le pointeur de souris
-    document.exitPointerLock();
-    
-    document.getElementById('go-score').textContent = score;
-    document.getElementById('go-kills').textContent = killsCount;
-    
-    showScreen('gameover-screen');
-}
-
-function triggerVictory() {
-    gameState = 'victory';
-    audio.stopMusic();
-    audio.playWin();
-    
-    document.exitPointerLock();
-    
-    timeElapsed = Math.floor((Date.now() - gameStartTime) / 1000);
-    
-    // Bonus de score pour le temps restant/écoulé rapide
-    const timeBonus = Math.max(0, 5000 - timeElapsed * 30);
-    score += timeBonus;
-    
-    document.getElementById('vic-time').textContent = timeElapsed;
-    document.getElementById('vic-score').textContent = score;
-    document.getElementById('vic-kills').textContent = killsCount;
-    
-    showScreen('victory-screen');
-    
-    // Ajouter au tableau des scores si qualifié
-    setTimeout(() => {
-        checkAndAddHighScore();
-    }, 500);
-}
-
-// --- BOUCLE PRINCIPALE DE JEU (RequestAnimationFrame) ---
-function gameLoop() {
-    if (gameState === 'playing') {
-        handlePlayerMovement();
-        player.update();
-        updateZombiesAndProjectiles();
-        
-        render3D();
-        renderMinimap();
-        updateHUD();
-    }
-    
-    requestAnimationFrame(gameLoop);
-}
-
-// --- CODE AU CHARGEMENT DE LA PAGE ---
-window.addEventListener('DOMContentLoaded', () => {
-    gameCanvas = document.getElementById('game-canvas');
-    ctx = gameCanvas.getContext('2d');
-    
-    minimapCanvas = document.getElementById('minimap-canvas');
-    minimapCtx = minimapCanvas.getContext('2d');
-    
-    // Initialiser les textures procedurale en cache
-    spritesGen.init();
-    
-    // Charger le tableau des scores
-    loadHighScores();
-    
-    // Configurer contrôles
-    initControls();
-    
-    // Choix du joueur
-    document.querySelectorAll('.player-card').forEach(card => {
-        card.addEventListener('click', () => {
-            selectPlayer(card.dataset.player);
-            // Son d'activation lors de la sélection du joueur
-            audio.init();
-            audio.playKick();
-        });
-    });
-    
-    // Boutons de navigation
-    document.getElementById('btn-play').addEventListener('click', startNewGame);
-    document.getElementById('btn-retry').addEventListener('click', startNewGame);
-    document.getElementById('btn-restart').addEventListener('click', () => {
-        showScreen('start-screen');
-    });
-    
-    // Bouton CRT
-    const btnCrt = document.getElementById('btn-crt');
-    const crtOverlay = document.getElementById('crt-overlay');
-    const scanlineOverlay = document.getElementById('scanline-overlay');
-    btnCrt.addEventListener('click', () => {
-        if (crtOverlay.classList.contains('crt-on')) {
-            crtOverlay.classList.remove('crt-on');
-            scanlineOverlay.style.display = 'none';
-            btnCrt.style.borderColor = '#3b4263';
-        } else {
-            crtOverlay.classList.add('crt-on');
-            scanlineOverlay.style.display = 'block';
-            btnCrt.style.borderColor = 'var(--neon-cyan)';
-        }
-    });
-    
-    // Bouton Mute
-    const btnMute = document.getElementById('btn-mute');
-    btnMute.addEventListener('click', () => {
-        const isMuted = audio.toggleMute();
-        btnMute.textContent = isMuted ? '🔇' : '🔊';
-        if (isMuted) {
-            btnMute.style.borderColor = '#3b4263';
-        } else {
-            btnMute.style.borderColor = 'var(--neon-cyan)';
-        }
-    });
-    
-    // Lancer la boucle principale
-    requestAnimationFrame(gameLoop);
-});
